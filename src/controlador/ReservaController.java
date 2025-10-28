@@ -6,6 +6,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,7 +31,7 @@ public class ReservaController {
             conn = conexion.conectar();
             conn.setAutoCommit(false);
 
-            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
                 ps.setInt(1, reserva.getIdCliente());
                 ps.setString(2, reserva.getPatente());
                 ps.setDate(3, toSqlDate(reserva.getFechaReserva()));
@@ -40,6 +41,12 @@ public class ReservaController {
                 ps.setBigDecimal(7, safeBigDecimal(reserva.getMontoEstimado()));
                 ps.setInt(8, reserva.getIdTrabajador());
                 ps.executeUpdate();
+
+                try (ResultSet rs = ps.getGeneratedKeys()) {
+                    if (rs.next()) {
+                        reserva.setIdReserva(rs.getInt(1));
+                    }
+                }
             }
 
             conn.commit();

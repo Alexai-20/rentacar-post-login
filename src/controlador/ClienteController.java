@@ -58,13 +58,19 @@ public class ClienteController {
                         int idUsuario = rs.getInt(1);
                         cliente.setIdUsuario(idUsuario);
 
-                        try (PreparedStatement psCliente = conn.prepareStatement(sqlCliente)) {
+                        try (PreparedStatement psCliente = conn.prepareStatement(sqlCliente, Statement.RETURN_GENERATED_KEYS)) {
                             psCliente.setInt(1, idUsuario);
                             psCliente.setString(2, cliente.getNumeroLicencia());
                             psCliente.setDate(3, toSqlDate(cliente.getFechaVencimientoLicencia()));
                             psCliente.setString(4, cliente.getTipoCliente());
                             psCliente.setString(5, cliente.getEmpresa());
                             psCliente.executeUpdate();
+
+                            try (ResultSet rsCliente = psCliente.getGeneratedKeys()) {
+                                if (rsCliente.next()) {
+                                    cliente.setIdCliente(rsCliente.getInt(1));
+                                }
+                            }
                         }
                     }
                 }

@@ -10,6 +10,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
@@ -17,9 +18,9 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
-import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableModel;
 import modelo.Reserva;
+import modelo.UsuarioAutenticado;
 
 /**
  * Ventana para el mantenimiento de reservas realizadas por los clientes.
@@ -29,6 +30,7 @@ public class FrmReservas extends javax.swing.JFrame {
     private static final long serialVersionUID = 1L;
 
     private final ReservaController controller;
+    private final UsuarioAutenticado usuario;
     private final DefaultTableModel modeloTabla;
     private final List<Reserva> reservasActuales = new ArrayList<>();
 
@@ -44,8 +46,12 @@ public class FrmReservas extends javax.swing.JFrame {
 
     private final JTable tblReservas = new JTable();
 
-    public FrmReservas(Conexion conexion) {
-        this.controller = new ReservaController(conexion);
+    public FrmReservas(Conexion conexion, UsuarioAutenticado usuario) {
+        this.usuario = Objects.requireNonNull(usuario, "Debe existir un usuario autenticado");
+        if (!this.usuario.esAdministrador() && !this.usuario.esTrabajador()) {
+            throw new IllegalStateException("El usuario actual no posee permisos para gestionar reservas");
+        }
+        this.controller = new ReservaController(Objects.requireNonNull(conexion, "La conexión no puede ser nula"));
         this.modeloTabla = new DefaultTableModel(
                 new Object[]{"ID", "Cliente", "Patente", "Inicio", "Fin", "Estado", "Monto", "Trabajador"}, 0
         ) {
@@ -59,7 +65,7 @@ public class FrmReservas extends javax.swing.JFrame {
     }
 
     private void initComponents() {
-        setTitle("Gestión de Reservas");
+        setTitle("Gestión de Reservas - " + usuario.getNombre());
         setSize(1000, 600);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
@@ -189,6 +195,7 @@ public class FrmReservas extends javax.swing.JFrame {
         if (controller.actualizarReserva(reserva)) {
             JOptionPane.showMessageDialog(this, "Reserva actualizada correctamente");
             cargarReservas();
+            limpiarFormulario();
         } else {
             JOptionPane.showMessageDialog(this, "No fue posible actualizar la reserva", "Error", JOptionPane.ERROR_MESSAGE);
         }
@@ -299,10 +306,4 @@ public class FrmReservas extends javax.swing.JFrame {
         tblReservas.clearSelection();
     }
 
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> {
-            Conexion conexion = new Conexion();
-            new FrmReservas(conexion).setVisible(true);
-        });
-    }
 }

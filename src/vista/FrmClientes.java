@@ -9,16 +9,18 @@ import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
-import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableModel;
 import modelo.Cliente;
+import modelo.UsuarioAutenticado;
 
 /**
  * Ventana para la administración de clientes. Permite ejecutar operaciones
@@ -29,6 +31,7 @@ public class FrmClientes extends javax.swing.JFrame {
     private static final long serialVersionUID = 1L;
 
     private final ClienteController controller;
+    private final UsuarioAutenticado usuario;
     private final DefaultTableModel modeloTabla;
     private final List<Cliente> clientesActuales = new ArrayList<>();
 
@@ -47,15 +50,19 @@ public class FrmClientes extends javax.swing.JFrame {
     private final JTextField txtFechaUltimaModificacion = new JTextField();
     private final JTextField txtNumeroLicencia = new JTextField();
     private final JTextField txtFechaVencimientoLicencia = new JTextField();
-    private final JTextField txtTipoCliente = new JTextField();
+    private final JComboBox<String> cboTipoCliente = new JComboBox<>(new String[]{"Particular", "Empresa"});
     private final JTextField txtEmpresa = new JTextField();
 
     private final JTable tblClientes = new JTable();
 
-    public FrmClientes(Conexion conexion) {
-        this.controller = new ClienteController(conexion);
+    public FrmClientes(Conexion conexion, UsuarioAutenticado usuario) {
+        this.usuario = Objects.requireNonNull(usuario, "Debe existir un usuario autenticado");
+        if (!this.usuario.esAdministrador()) {
+            throw new IllegalStateException("El usuario actual no posee permisos para gestionar clientes");
+        }
+        this.controller = new ClienteController(Objects.requireNonNull(conexion, "La conexión no puede ser nula"));
         this.modeloTabla = new DefaultTableModel(
-                new Object[]{"ID Cliente", "ID Usuario", "Nombre", "Apellido", "RUT", "Email", "Teléfono", "Tipo Cliente", "Empresa", "Estado"}, 0
+                new Object[]{"ID Cliente", "ID Usuario", "Nombre", "Apellido", "RUT", "Email", "Teléfono", "Número licencia", "Vencimiento licencia", "Tipo Cliente", "Empresa", "Estado"}, 0
         ) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -67,7 +74,7 @@ public class FrmClientes extends javax.swing.JFrame {
     }
 
     private void initComponents() {
-        setTitle("Gestión de Clientes");
+        setTitle("Gestión de Clientes - " + usuario.getNombre());
         setSize(1100, 650);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
@@ -124,8 +131,11 @@ public class FrmClientes extends javax.swing.JFrame {
         panelFormulario.add(new JLabel("Vencimiento licencia (yyyy-MM-dd):"));
         panelFormulario.add(txtFechaVencimientoLicencia);
 
+        cboTipoCliente.setSelectedItem(null);
+        txtEmpresa.setEnabled(false);
+
         panelFormulario.add(new JLabel("Tipo cliente:"));
-        panelFormulario.add(txtTipoCliente);
+        panelFormulario.add(cboTipoCliente);
 
         panelFormulario.add(new JLabel("Empresa:"));
         panelFormulario.add(txtEmpresa);
@@ -158,6 +168,8 @@ public class FrmClientes extends javax.swing.JFrame {
         panelBotones.add(btnLimpiar);
 
         add(panelBotones, BorderLayout.SOUTH);
+
+        cboTipoCliente.addActionListener(e -> actualizarEstadoEmpresa());
     }
 
     private void cargarClientes() {
@@ -173,6 +185,8 @@ public class FrmClientes extends javax.swing.JFrame {
                 c.getRut(),
                 c.getEmail(),
                 c.getTelefono(),
+                c.getNumeroLicencia(),
+                formatDate(c.getFechaVencimientoLicencia()),
                 c.getTipoCliente(),
                 c.getEmpresa(),
                 c.getEstado()
@@ -199,7 +213,7 @@ public class FrmClientes extends javax.swing.JFrame {
             txtFechaUltimaModificacion.setText(formatDate(cliente.getFechaUltimaModificacion()));
             txtNumeroLicencia.setText(cliente.getNumeroLicencia());
             txtFechaVencimientoLicencia.setText(formatDate(cliente.getFechaVencimientoLicencia()));
-            txtTipoCliente.setText(cliente.getTipoCliente());
+            seleccionarTipoCliente(cliente.getTipoCliente());
             txtEmpresa.setText(cliente.getEmpresa());
         }
     }
@@ -234,6 +248,7 @@ public class FrmClientes extends javax.swing.JFrame {
         if (controller.actualizarCliente(cliente)) {
             JOptionPane.showMessageDialog(this, "Cliente actualizado correctamente");
             cargarClientes();
+            limpiarFormulario();
         } else {
             JOptionPane.showMessageDialog(this, "No fue posible actualizar al cliente", "Error", JOptionPane.ERROR_MESSAGE);
         }
@@ -296,7 +311,12 @@ public class FrmClientes extends javax.swing.JFrame {
         } catch (IllegalArgumentException ex) {
             return null;
         }
-        cliente.setTipoCliente(txtTipoCliente.getText().trim());
+        String tipoClienteSeleccionado = obtenerTipoClienteSeleccionado();
+        if (tipoClienteSeleccionado == null) {
+            JOptionPane.showMessageDialog(this, "Seleccione el tipo de cliente", "Validación", JOptionPane.WARNING_MESSAGE);
+            return null;
+        }
+        cliente.setTipoCliente(tipoClienteSeleccionado);
         cliente.setEmpresa(txtEmpresa.getText().trim());
 
         if (esNuevo) {
@@ -339,15 +359,41 @@ public class FrmClientes extends javax.swing.JFrame {
         txtFechaUltimaModificacion.setText("");
         txtNumeroLicencia.setText("");
         txtFechaVencimientoLicencia.setText("");
-        txtTipoCliente.setText("");
+        cboTipoCliente.setSelectedItem(null);
         txtEmpresa.setText("");
+        txtEmpresa.setEnabled(false);
         tblClientes.clearSelection();
     }
 
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> {
-            Conexion conexion = new Conexion();
-            new FrmClientes(conexion).setVisible(true);
-        });
+    private void seleccionarTipoCliente(String tipoCliente) {
+        if (tipoCliente == null || tipoCliente.isBlank()) {
+            cboTipoCliente.setSelectedItem(null);
+            actualizarEstadoEmpresa();
+            return;
+        }
+        for (int i = 0; i < cboTipoCliente.getItemCount(); i++) {
+            String item = cboTipoCliente.getItemAt(i);
+            if (item.equalsIgnoreCase(tipoCliente)) {
+                cboTipoCliente.setSelectedIndex(i);
+                actualizarEstadoEmpresa();
+                return;
+            }
+        }
+        cboTipoCliente.setSelectedItem(null);
+        actualizarEstadoEmpresa();
+    }
+
+    private String obtenerTipoClienteSeleccionado() {
+        Object seleccionado = cboTipoCliente.getSelectedItem();
+        return seleccionado != null ? seleccionado.toString() : null;
+    }
+
+    private void actualizarEstadoEmpresa() {
+        Object seleccionado = cboTipoCliente.getSelectedItem();
+        boolean esEmpresa = seleccionado != null && "Empresa".equalsIgnoreCase(seleccionado.toString());
+        txtEmpresa.setEnabled(esEmpresa);
+        if (!esEmpresa) {
+            txtEmpresa.setText("");
+        }
     }
 }

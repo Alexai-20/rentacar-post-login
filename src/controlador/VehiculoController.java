@@ -9,6 +9,8 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import modelo.Factura;
+import modelo.MantenimientoVehiculoDetalle;
 import modelo.Vehiculo;
 
 /**
@@ -67,27 +69,135 @@ public class VehiculoController {
                 ResultSet rs = ps.executeQuery()) {
 
             while (rs.next()) {
-                Vehiculo vehiculo = new Vehiculo(
-                        rs.getString("patente"),
-                        rs.getInt("id_modelo"),
-                        toLocalDate(rs.getDate("año")),
-                        rs.getString("tipo_combustible"),
-                        rs.getInt("kilometraje"),
-                        rs.getString("color"),
-                        rs.getInt("numero_asientos"),
-                        rs.getString("tipo_vehiculo"),
-                        rs.getBigDecimal("tarifa_diaria"),
-                        rs.getString("estado_mantenimiento"),
-                        disponibilidadFromDb(rs.getString("disponibilidad")),
-                        toLocalDate(rs.getDate("fecha_registro")),
-                        toLocalDate(rs.getDate("fecha_ultima_revision"))
-                );
-                vehiculos.add(vehiculo);
+                vehiculos.add(mapearVehiculo(rs));
             }
         } catch (SQLException ex) {
             ex.printStackTrace();
         }
         return vehiculos;
+    }
+
+    public Vehiculo buscarVehiculoPorPatente(String patente) {
+        String sql = "SELECT patente, id_modelo, `año`, tipo_combustible, kilometraje, color, numero_asientos, tipo_vehiculo, tarifa_diaria, estado_mantenimiento, disponibilidad, fecha_registro, fecha_ultima_revision FROM VEHICULOS WHERE patente = ?";
+
+        try (Connection conn = conexion.conectar();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, patente);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return mapearVehiculo(rs);
+                }
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
+        return null;
+    }
+
+    public List<Vehiculo> obtenerVehiculosPorTarifa(BigDecimal tarifaMinima, BigDecimal tarifaMaxima) {
+        List<Vehiculo> vehiculos = new ArrayList<>();
+        StringBuilder sql = new StringBuilder("SELECT patente, id_modelo, `año`, tipo_combustible, kilometraje, color, numero_asientos, tipo_vehiculo, tarifa_diaria, estado_mantenimiento, disponibilidad, fecha_registro, fecha_ultima_revision FROM VEHICULOS WHERE 1 = 1");
+        List<BigDecimal> parametros = new ArrayList<>();
+
+        if (tarifaMinima != null) {
+            sql.append(" AND tarifa_diaria >= ?");
+            parametros.add(tarifaMinima);
+        }
+        if (tarifaMaxima != null) {
+            sql.append(" AND tarifa_diaria <= ?");
+            parametros.add(tarifaMaxima);
+        }
+        sql.append(" ORDER BY tarifa_diaria ASC, patente ASC");
+
+        try (Connection conn = conexion.conectar();
+                PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+
+            for (int i = 0; i < parametros.size(); i++) {
+                ps.setBigDecimal(i + 1, parametros.get(i));
+            }
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    vehiculos.add(mapearVehiculo(rs));
+                }
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
+
+        return vehiculos;
+    }
+
+    public List<Factura> obtenerFacturasPorPatente(String patente) {
+        List<Factura> facturas = new ArrayList<>();
+        String sql = "SELECT f.id_factura, f.id_alquiler, f.numero_factura, f.fecha_emision, f.subtotal, f.impuestos, f.monto_total, f.estado_pago, f.fecha_vencimiento "
+                + "FROM FACTURA f "
+                + "JOIN ALQUILER a ON f.id_alquiler = a.id_alquiler "
+                + "JOIN RESERVAS r ON a.id_reserva = r.id_reserva "
+                + "WHERE r.patente = ? "
+                + "ORDER BY f.fecha_emision DESC, f.id_factura DESC";
+
+        try (Connection conn = conexion.conectar();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, patente);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Factura factura = new Factura(
+                            rs.getInt("id_factura"),
+                            rs.getInt("id_alquiler"),
+                            rs.getString("numero_factura"),
+                            toLocalDate(rs.getDate("fecha_emision")),
+                            rs.getBigDecimal("subtotal"),
+                            rs.getBigDecimal("impuestos"),
+                            rs.getBigDecimal("monto_total"),
+                            rs.getString("estado_pago"),
+                            toLocalDate(rs.getDate("fecha_vencimiento"))
+                    );
+                    facturas.add(factura);
+                }
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
+
+        return facturas;
+    }
+
+    public List<MantenimientoVehiculoDetalle> obtenerMantenimientosPorPatente(String patente) {
+        List<MantenimientoVehiculoDetalle> mantenimientos = new ArrayList<>();
+        String sql = "SELECT mv.id_mantenimiento, mv.patente, mv.id_tipo_mantenimiento, mv.costo, mv.fecha_mantenimiento, mv.kilometraje_mantenimiento, "
+                + "mv.proximo_mantenimiento_km, mv.proximo_mantenimiento_fecha, mv.id_trabajador, tm.nombre AS nombre_tipo, tm.descripcion AS descripcion_tipo "
+                + "FROM MANTENIMIENTOS_VEHICULOS mv "
+                + "JOIN TIPOS_MANTENIMIENTO tm ON mv.id_tipo_mantenimiento = tm.id_mantenimiento "
+                + "WHERE mv.patente = ? "
+                + "ORDER BY mv.fecha_mantenimiento DESC, mv.id_mantenimiento DESC";
+
+        try (Connection conn = conexion.conectar();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, patente);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    MantenimientoVehiculoDetalle mantenimiento = new MantenimientoVehiculoDetalle(
+                            rs.getInt("id_mantenimiento"),
+                            rs.getString("patente"),
+                            rs.getInt("id_tipo_mantenimiento"),
+                            rs.getBigDecimal("costo"),
+                            toLocalDate(rs.getDate("fecha_mantenimiento")),
+                            rs.getInt("kilometraje_mantenimiento"),
+                            rs.getInt("proximo_mantenimiento_km"),
+                            toLocalDate(rs.getDate("proximo_mantenimiento_fecha")),
+                            rs.getInt("id_trabajador"),
+                            rs.getString("nombre_tipo"),
+                            rs.getString("descripcion_tipo")
+                    );
+                    mantenimientos.add(mantenimiento);
+                }
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
+
+        return mantenimientos;
     }
 
     public boolean actualizarVehiculo(Vehiculo vehiculo) {
@@ -176,6 +286,24 @@ public class VehiculoController {
                 || normalized.equals("sí")
                 || normalized.equals("true")
                 || normalized.equals("1");
+    }
+
+    private Vehiculo mapearVehiculo(ResultSet rs) throws SQLException {
+        return new Vehiculo(
+                rs.getString("patente"),
+                rs.getInt("id_modelo"),
+                toLocalDate(rs.getDate("año")),
+                rs.getString("tipo_combustible"),
+                rs.getInt("kilometraje"),
+                rs.getString("color"),
+                rs.getInt("numero_asientos"),
+                rs.getString("tipo_vehiculo"),
+                rs.getBigDecimal("tarifa_diaria"),
+                rs.getString("estado_mantenimiento"),
+                disponibilidadFromDb(rs.getString("disponibilidad")),
+                toLocalDate(rs.getDate("fecha_registro")),
+                toLocalDate(rs.getDate("fecha_ultima_revision"))
+        );
     }
 
     private void rollbackQuietly(Connection conn) {
