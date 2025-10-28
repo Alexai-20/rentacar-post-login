@@ -132,6 +132,7 @@ public class FrmClientes extends javax.swing.JFrame {
         panelFormulario.add(txtFechaVencimientoLicencia);
 
         cboTipoCliente.setSelectedItem(null);
+        txtEmpresa.setEnabled(false);
 
         panelFormulario.add(new JLabel("Tipo cliente:"));
         panelFormulario.add(cboTipoCliente);
@@ -167,6 +168,8 @@ public class FrmClientes extends javax.swing.JFrame {
         panelBotones.add(btnLimpiar);
 
         add(panelBotones, BorderLayout.SOUTH);
+
+        cboTipoCliente.addActionListener(e -> actualizarEstadoEmpresa());
     }
 
     private void cargarClientes() {
@@ -358,26 +361,39 @@ public class FrmClientes extends javax.swing.JFrame {
         txtFechaVencimientoLicencia.setText("");
         cboTipoCliente.setSelectedItem(null);
         txtEmpresa.setText("");
+        txtEmpresa.setEnabled(false);
         tblClientes.clearSelection();
     }
 
     private void seleccionarTipoCliente(String tipoCliente) {
         if (tipoCliente == null || tipoCliente.isBlank()) {
             cboTipoCliente.setSelectedItem(null);
+            actualizarEstadoEmpresa();
             return;
         }
         for (int i = 0; i < cboTipoCliente.getItemCount(); i++) {
             String item = cboTipoCliente.getItemAt(i);
             if (item.equalsIgnoreCase(tipoCliente)) {
                 cboTipoCliente.setSelectedIndex(i);
+                actualizarEstadoEmpresa();
                 return;
             }
         }
         cboTipoCliente.setSelectedItem(null);
+        actualizarEstadoEmpresa();
     }
 
     private String obtenerTipoClienteSeleccionado() {
         Object seleccionado = cboTipoCliente.getSelectedItem();
         return seleccionado != null ? seleccionado.toString() : null;
+    }
+
+    private void actualizarEstadoEmpresa() {
+        Object seleccionado = cboTipoCliente.getSelectedItem();
+        boolean esEmpresa = seleccionado != null && "Empresa".equalsIgnoreCase(seleccionado.toString());
+        txtEmpresa.setEnabled(esEmpresa);
+        if (!esEmpresa) {
+            txtEmpresa.setText("");
+        }
     }
 }
