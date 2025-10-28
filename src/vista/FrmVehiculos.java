@@ -10,6 +10,8 @@ import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JLabel;
@@ -18,9 +20,11 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
-import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableModel;
 import modelo.Vehiculo;
+import modelo.Factura;
+import modelo.MantenimientoVehiculoDetalle;
+import modelo.UsuarioAutenticado;
 
 /**
  * Ventana para la gestión de vehículos disponibles en la flota.
@@ -30,7 +34,25 @@ public class FrmVehiculos extends javax.swing.JFrame {
     private static final long serialVersionUID = 1L;
 
     private final VehiculoController controller;
+    private final UsuarioAutenticado usuario;
     private final DefaultTableModel modeloTabla;
+    private final DefaultTableModel modeloFacturas = new DefaultTableModel(
+            new Object[]{"Factura", "Fecha emisión", "Monto total", "Estado"}, 0
+    ) {
+        @Override
+        public boolean isCellEditable(int row, int column) {
+            return false;
+        }
+    };
+
+    private final DefaultTableModel modeloMantenimientos = new DefaultTableModel(
+            new Object[]{"Tipo", "Fecha", "Costo", "Próximo"}, 0
+    ) {
+        @Override
+        public boolean isCellEditable(int row, int column) {
+            return false;
+        }
+    };
     private final List<Vehiculo> vehiculosActuales = new ArrayList<>();
 
     private final JTextField txtPatente = new JTextField();
@@ -46,11 +68,21 @@ public class FrmVehiculos extends javax.swing.JFrame {
     private final JCheckBox chkDisponibilidad = new JCheckBox("Disponible");
     private final JTextField txtFechaRegistro = new JTextField();
     private final JTextField txtFechaUltimaRevision = new JTextField();
+    private final JTextField txtTarifaMin = new JTextField();
+    private final JTextField txtTarifaMax = new JTextField();
 
     private final JTable tblVehiculos = new JTable();
+    private final JTable tblFacturas = new JTable(modeloFacturas);
+    private final JTable tblMantenimientos = new JTable(modeloMantenimientos);
+    private final JTextField txtBuscarPatente = new JTextField();
+    private final JLabel lblUltimoMantenimiento = new JLabel("Sin datos de mantenimiento");
 
-    public FrmVehiculos(Conexion conexion) {
-        this.controller = new VehiculoController(conexion);
+    public FrmVehiculos(Conexion conexion, UsuarioAutenticado usuario) {
+        this.usuario = Objects.requireNonNull(usuario, "Debe existir un usuario autenticado");
+        if (!this.usuario.esAdministrador() && !this.usuario.esTrabajador()) {
+            throw new IllegalStateException("El usuario actual no posee permisos para gestionar vehículos");
+        }
+        this.controller = new VehiculoController(Objects.requireNonNull(conexion, "La conexión no puede ser nula"));
         this.modeloTabla = new DefaultTableModel(
                 new Object[]{"Patente", "Modelo", "Tipo", "Disponibilidad", "Tarifa diaria", "Estado mant."}, 0
         ) {
@@ -61,10 +93,11 @@ public class FrmVehiculos extends javax.swing.JFrame {
         };
         initComponents();
         cargarVehiculos();
+        limpiarHistorial();
     }
 
     private void initComponents() {
-        setTitle("Gestión de Vehículos");
+        setTitle("Gestión de Vehículos - " + usuario.getNombre());
         setSize(1000, 600);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
@@ -119,7 +152,33 @@ public class FrmVehiculos extends javax.swing.JFrame {
                 cargarVehiculoSeleccionado();
             }
         });
-        add(new JScrollPane(tblVehiculos), BorderLayout.CENTER);
+
+        JPanel panelTabla = new JPanel(new BorderLayout(5, 5));
+        JPanel panelFiltroTarifa = new JPanel();
+        panelFiltroTarifa.setBorder(BorderFactory.createTitledBorder("Filtrar por tarifa diaria"));
+
+        txtTarifaMin.setColumns(6);
+        txtTarifaMax.setColumns(6);
+
+        panelFiltroTarifa.add(new JLabel("Mínima:"));
+        panelFiltroTarifa.add(txtTarifaMin);
+        panelFiltroTarifa.add(new JLabel("Máxima:"));
+        panelFiltroTarifa.add(txtTarifaMax);
+
+        JButton btnFiltrarTarifa = new JButton("Filtrar");
+        btnFiltrarTarifa.addActionListener(e -> aplicarFiltroTarifa());
+        panelFiltroTarifa.add(btnFiltrarTarifa);
+
+        JButton btnLimpiarFiltro = new JButton("Limpiar filtro");
+        btnLimpiarFiltro.addActionListener(e -> restablecerFiltroTarifa());
+        panelFiltroTarifa.add(btnLimpiarFiltro);
+
+        panelTabla.add(panelFiltroTarifa, BorderLayout.NORTH);
+        panelTabla.add(new JScrollPane(tblVehiculos), BorderLayout.CENTER);
+        add(panelTabla, BorderLayout.CENTER);
+
+        JPanel panelHistorial = construirPanelHistorial();
+        add(panelHistorial, BorderLayout.EAST);
 
         JPanel panelBotones = new JPanel();
         JButton btnGuardar = new JButton("Registrar");
@@ -140,20 +199,41 @@ public class FrmVehiculos extends javax.swing.JFrame {
         add(panelBotones, BorderLayout.SOUTH);
     }
 
+    private JPanel construirPanelHistorial() {
+        JPanel panelHistorial = new JPanel(new BorderLayout(10, 10));
+        panelHistorial.setBorder(BorderFactory.createTitledBorder("Historial del Vehículo"));
+        panelHistorial.setPreferredSize(new Dimension(380, 0));
+
+        JPanel panelBusqueda = new JPanel(new BorderLayout(5, 5));
+        panelBusqueda.add(new JLabel("Patente:"), BorderLayout.WEST);
+        panelBusqueda.add(txtBuscarPatente, BorderLayout.CENTER);
+        JButton btnBuscar = new JButton("Buscar");
+        btnBuscar.addActionListener(e -> buscarHistorialPorPatente());
+        panelBusqueda.add(btnBuscar, BorderLayout.EAST);
+
+        panelHistorial.add(panelBusqueda, BorderLayout.NORTH);
+
+        JPanel panelTablas = new JPanel(new GridLayout(2, 1, 5, 10));
+
+        JScrollPane scrollFacturas = new JScrollPane(tblFacturas);
+        scrollFacturas.setBorder(BorderFactory.createTitledBorder("Facturas"));
+        panelTablas.add(scrollFacturas);
+
+        JScrollPane scrollMantenimientos = new JScrollPane(tblMantenimientos);
+        scrollMantenimientos.setBorder(BorderFactory.createTitledBorder("Mantenimientos"));
+        panelTablas.add(scrollMantenimientos);
+
+        panelHistorial.add(panelTablas, BorderLayout.CENTER);
+
+        lblUltimoMantenimiento.setVerticalAlignment(JLabel.TOP);
+        lblUltimoMantenimiento.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+        panelHistorial.add(lblUltimoMantenimiento, BorderLayout.SOUTH);
+
+        return panelHistorial;
+    }
+
     private void cargarVehiculos() {
-        vehiculosActuales.clear();
-        vehiculosActuales.addAll(controller.obtenerVehiculos());
-        modeloTabla.setRowCount(0);
-        for (Vehiculo v : vehiculosActuales) {
-            modeloTabla.addRow(new Object[]{
-                v.getPatente(),
-                v.getIdModelo(),
-                v.getTipoVehiculo(),
-                v.isDisponibilidad() ? "Disponible" : "No disponible",
-                v.getTarifaDiaria(),
-                v.getEstadoMantenimiento()
-            });
-        }
+        mostrarVehiculos(controller.obtenerVehiculos());
     }
 
     private void cargarVehiculoSeleccionado() {
@@ -173,6 +253,8 @@ public class FrmVehiculos extends javax.swing.JFrame {
             chkDisponibilidad.setSelected(vehiculo.isDisponibilidad());
             txtFechaRegistro.setText(formatDate(vehiculo.getFechaRegistro()));
             txtFechaUltimaRevision.setText(formatDate(vehiculo.getFechaUltimaRevision()));
+            txtBuscarPatente.setText(vehiculo.getPatente());
+            mostrarHistorialVehiculo(vehiculo.getPatente());
         }
     }
 
@@ -194,6 +276,7 @@ public class FrmVehiculos extends javax.swing.JFrame {
             JOptionPane.showMessageDialog(this, "Vehículo registrado correctamente");
             cargarVehiculos();
             limpiarFormulario();
+            limpiarHistorial();
         } else {
             JOptionPane.showMessageDialog(this, "No fue posible registrar el vehículo", "Error", JOptionPane.ERROR_MESSAGE);
         }
@@ -214,6 +297,8 @@ public class FrmVehiculos extends javax.swing.JFrame {
         if (controller.actualizarVehiculo(vehiculo)) {
             JOptionPane.showMessageDialog(this, "Vehículo actualizado correctamente");
             cargarVehiculos();
+            limpiarFormulario();
+            limpiarHistorial();
         } else {
             JOptionPane.showMessageDialog(this, "No fue posible actualizar el vehículo", "Error", JOptionPane.ERROR_MESSAGE);
         }
@@ -233,6 +318,7 @@ public class FrmVehiculos extends javax.swing.JFrame {
                 JOptionPane.showMessageDialog(this, "Vehículo eliminado");
                 cargarVehiculos();
                 limpiarFormulario();
+                limpiarHistorial();
             } else {
                 JOptionPane.showMessageDialog(this, "No fue posible eliminar el vehículo", "Error", JOptionPane.ERROR_MESSAGE);
             }
@@ -273,6 +359,23 @@ public class FrmVehiculos extends javax.swing.JFrame {
         }
 
         return vehiculo;
+    }
+
+    private void mostrarVehiculos(List<Vehiculo> vehiculos) {
+        vehiculosActuales.clear();
+        vehiculosActuales.addAll(vehiculos);
+        modeloTabla.setRowCount(0);
+        for (Vehiculo v : vehiculosActuales) {
+            modeloTabla.addRow(new Object[]{
+                v.getPatente(),
+                v.getIdModelo(),
+                v.getTipoVehiculo(),
+                v.isDisponibilidad() ? "Disponible" : "No disponible",
+                v.getTarifaDiaria(),
+                v.getEstadoMantenimiento()
+            });
+        }
+        tblVehiculos.clearSelection();
     }
 
     private LocalDate parseFecha(String valor, String campo) {
@@ -333,10 +436,148 @@ public class FrmVehiculos extends javax.swing.JFrame {
         tblVehiculos.clearSelection();
     }
 
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> {
-            Conexion conexion = new Conexion();
-            new FrmVehiculos(conexion).setVisible(true);
-        });
+    private void limpiarHistorial() {
+        modeloFacturas.setRowCount(0);
+        modeloMantenimientos.setRowCount(0);
+        lblUltimoMantenimiento.setText("Sin datos de mantenimiento");
     }
+
+    private void aplicarFiltroTarifa() {
+        String minimaTexto = txtTarifaMin.getText().trim();
+        String maximaTexto = txtTarifaMax.getText().trim();
+
+        BigDecimal minima = null;
+        BigDecimal maxima = null;
+
+        try {
+            if (!minimaTexto.isEmpty()) {
+                minima = new BigDecimal(minimaTexto);
+                if (minima.compareTo(BigDecimal.ZERO) < 0) {
+                    throw new NumberFormatException();
+                }
+            }
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(this, "Ingrese un valor numérico válido para la tarifa mínima", "Validación", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        try {
+            if (!maximaTexto.isEmpty()) {
+                maxima = new BigDecimal(maximaTexto);
+                if (maxima.compareTo(BigDecimal.ZERO) < 0) {
+                    throw new NumberFormatException();
+                }
+            }
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(this, "Ingrese un valor numérico válido para la tarifa máxima", "Validación", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        if (minima != null && maxima != null && minima.compareTo(maxima) > 0) {
+            JOptionPane.showMessageDialog(this, "La tarifa mínima no puede ser mayor que la máxima", "Validación", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        List<Vehiculo> filtrados = controller.obtenerVehiculosPorTarifa(minima, maxima);
+        mostrarVehiculos(filtrados);
+
+        if (filtrados.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "No se encontraron vehículos en el rango de tarifas especificado", "Búsqueda", JOptionPane.INFORMATION_MESSAGE);
+        }
+    }
+
+    private void restablecerFiltroTarifa() {
+        txtTarifaMin.setText("");
+        txtTarifaMax.setText("");
+        cargarVehiculos();
+    }
+
+    private void buscarHistorialPorPatente() {
+        String patente = txtBuscarPatente.getText().trim().toUpperCase();
+        if (patente.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Ingrese la patente a buscar", "Validación", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        Vehiculo vehiculo = controller.buscarVehiculoPorPatente(patente);
+        if (vehiculo == null) {
+            JOptionPane.showMessageDialog(this, "No se encontró un vehículo con la patente especificada", "Búsqueda", JOptionPane.INFORMATION_MESSAGE);
+            limpiarHistorial();
+            return;
+        }
+
+        txtBuscarPatente.setText(vehiculo.getPatente());
+        mostrarHistorialVehiculo(vehiculo.getPatente());
+    }
+
+    private void mostrarHistorialVehiculo(String patente) {
+        cargarFacturas(patente);
+        List<MantenimientoVehiculoDetalle> mantenimientos = controller.obtenerMantenimientosPorPatente(patente);
+        cargarMantenimientos(mantenimientos);
+        actualizarUltimoMantenimiento(mantenimientos);
+    }
+
+    private void cargarFacturas(String patente) {
+        modeloFacturas.setRowCount(0);
+        List<Factura> facturas = controller.obtenerFacturasPorPatente(patente);
+        for (Factura factura : facturas) {
+            modeloFacturas.addRow(new Object[]{
+                factura.getNumeroFactura(),
+                formatDate(factura.getFechaEmision()),
+                factura.getMontoTotal(),
+                factura.getEstadoPago()
+            });
+        }
+    }
+
+    private void cargarMantenimientos(List<MantenimientoVehiculoDetalle> mantenimientos) {
+        modeloMantenimientos.setRowCount(0);
+        for (MantenimientoVehiculoDetalle mantenimiento : mantenimientos) {
+            String proximo;
+            if (mantenimiento.getProximoMantenimientoFecha() != null) {
+                proximo = mantenimiento.getProximoMantenimientoFecha().toString();
+            } else if (mantenimiento.getProximoMantenimientoKm() > 0) {
+                proximo = mantenimiento.getProximoMantenimientoKm() + " km";
+            } else {
+                proximo = "-";
+            }
+            modeloMantenimientos.addRow(new Object[]{
+                mantenimiento.getNombreTipoMantenimiento(),
+                formatDate(mantenimiento.getFechaMantenimiento()),
+                mantenimiento.getCosto(),
+                proximo
+            });
+        }
+    }
+
+    private void actualizarUltimoMantenimiento(List<MantenimientoVehiculoDetalle> mantenimientos) {
+        if (mantenimientos.isEmpty()) {
+            lblUltimoMantenimiento.setText("Sin datos de mantenimiento");
+            return;
+        }
+
+        MantenimientoVehiculoDetalle ultimo = mantenimientos.get(0);
+        if (ultimo == null) {
+            lblUltimoMantenimiento.setText("Sin datos de mantenimiento");
+            return;
+        }
+
+        StringBuilder detalle = new StringBuilder("<html><b>Último mantenimiento:</b> ");
+        detalle.append(ultimo.getNombreTipoMantenimiento());
+        if (ultimo.getFechaMantenimiento() != null) {
+            detalle.append(" - ").append(ultimo.getFechaMantenimiento());
+        }
+        if (ultimo.getCosto() != null) {
+            detalle.append(" | Costo: ").append(ultimo.getCosto());
+        }
+        if (ultimo.getKilometrajeMantenimiento() > 0) {
+            detalle.append(" | Kilometraje: ").append(ultimo.getKilometrajeMantenimiento()).append(" km");
+        }
+        if (ultimo.getDescripcionTipoMantenimiento() != null && !ultimo.getDescripcionTipoMantenimiento().isBlank()) {
+            detalle.append("<br><i>").append(ultimo.getDescripcionTipoMantenimiento()).append("</i>");
+        }
+        detalle.append("</html>");
+        lblUltimoMantenimiento.setText(detalle.toString());
+    }
+
 }
