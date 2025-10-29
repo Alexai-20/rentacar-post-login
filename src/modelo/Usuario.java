@@ -21,6 +21,7 @@ public abstract class Usuario {
     private String estado;
     private LocalDate fechaRegistro;
     private LocalDate fechaUltimaModificacion;
+    private String contrasenaHash;
 
     public Usuario() {
     }
@@ -28,7 +29,8 @@ public abstract class Usuario {
     public Usuario(int idUsuario, String nombre, String apellido, String rut,
             String email, String telefono, String direccion,
             LocalDate fechaNacimiento, String tipoUsuario, String estado,
-            LocalDate fechaRegistro, LocalDate fechaUltimaModificacion) {
+            LocalDate fechaRegistro, LocalDate fechaUltimaModificacion,
+            String contrasenaHash) {
         this.idUsuario = idUsuario;
         this.nombre = nombre;
         this.apellido = apellido;
@@ -41,6 +43,7 @@ public abstract class Usuario {
         this.estado = estado;
         this.fechaRegistro = fechaRegistro;
         this.fechaUltimaModificacion = fechaUltimaModificacion;
+        this.contrasenaHash = contrasenaHash;
     }
 
     public int getIdUsuario() {
@@ -139,6 +142,14 @@ public abstract class Usuario {
         this.fechaUltimaModificacion = fechaUltimaModificacion;
     }
 
+    public String getContrasenaHash() {
+        return contrasenaHash;
+    }
+
+    public void setContrasenaHash(String contrasenaHash) {
+        this.contrasenaHash = contrasenaHash;
+    }
+
     /**
      * Debe devolver una descripción textual del usuario según el rol
      * específico de cada subclase.
@@ -160,6 +171,7 @@ public abstract class Usuario {
                 + ", estado='" + estado + '\''
                 + ", fechaRegistro=" + fechaRegistro
                 + ", fechaUltimaModificacion=" + fechaUltimaModificacion
+                + ", contrasenaHash='" + (contrasenaHash != null ? "***" : null) + '\''
                 + '}';
     }
 }

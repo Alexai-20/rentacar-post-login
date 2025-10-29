@@ -2,7 +2,10 @@ package vista;
 
 import java.awt.BorderLayout;
 import java.awt.GridLayout;
+import controlador.AutenticacionController;
+import conexion.Conexion;
 import java.util.Arrays;
+import java.util.Optional;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -11,6 +14,7 @@ import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
+import modelo.Administrador;
 
 /**
  * Ventana de inicio de sesión básica para validar el acceso al sistema.
@@ -19,8 +23,12 @@ public class FrmLogin extends JFrame {
 
     private final JTextField txtUsuario;
     private final JPasswordField txtContrasena;
+    private final Conexion conexion;
+    private final AutenticacionController autenticacionController;
 
     public FrmLogin() {
+        this.conexion = new Conexion();
+        this.autenticacionController = new AutenticacionController(conexion);
         txtUsuario = new JTextField();
         txtContrasena = new JPasswordField();
         initComponents();
@@ -34,7 +42,7 @@ public class FrmLogin extends JFrame {
         setLayout(new BorderLayout(10, 10));
 
         JPanel panelCampos = new JPanel(new GridLayout(0, 1, 5, 5));
-        panelCampos.add(new JLabel("Usuario:"));
+        panelCampos.add(new JLabel("Correo electrónico:"));
         panelCampos.add(txtUsuario);
         panelCampos.add(new JLabel("Contraseña:"));
         panelCampos.add(txtContrasena);
@@ -60,19 +68,23 @@ public class FrmLogin extends JFrame {
         String usuario = txtUsuario.getText().trim();
         char[] contrasenaIngresada = txtContrasena.getPassword();
 
-        boolean credencialesCorrectas = "admin".equals(usuario)
-                && "1234".equals(new String(contrasenaIngresada));
-
-        if (credencialesCorrectas) {
+        if (usuario.isEmpty() || contrasenaIngresada.length == 0) {
+            JOptionPane.showMessageDialog(this, "Ingrese correo y contraseña", "Validación", JOptionPane.WARNING_MESSAGE);
             Arrays.fill(contrasenaIngresada, '\0');
+            return;
+        }
+
+        Optional<Administrador> administrador = autenticacionController.autenticar(usuario, contrasenaIngresada);
+        Arrays.fill(contrasenaIngresada, '\0');
+
+        if (administrador.isPresent()) {
             JOptionPane.showMessageDialog(this, "Inicio de sesión exitoso", "Acceso permitido",
                     JOptionPane.INFORMATION_MESSAGE);
             dispose();
-            SwingUtilities.invokeLater(() -> new FrmPrincipal().setVisible(true));
+            SwingUtilities.invokeLater(() -> new FrmPrincipal(conexion, administrador.get()).setVisible(true));
         } else {
-            JOptionPane.showMessageDialog(this, "Usuario o contraseña incorrectos", "Acceso denegado",
+            JOptionPane.showMessageDialog(this, "Credenciales inválidas o usuario sin permisos", "Acceso denegado",
                     JOptionPane.ERROR_MESSAGE);
-            Arrays.fill(contrasenaIngresada, '\0');
             txtContrasena.setText("");
             txtContrasena.requestFocusInWindow();
         }

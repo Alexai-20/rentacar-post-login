@@ -16,10 +16,12 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableModel;
+import modelo.HistorialVehiculo;
 import modelo.Vehiculo;
 
 /**
@@ -32,6 +34,8 @@ public class FrmVehiculos extends javax.swing.JFrame {
     private final VehiculoController controller;
     private final DefaultTableModel modeloTabla;
     private final List<Vehiculo> vehiculosActuales = new ArrayList<>();
+    private final DefaultTableModel modeloHistorial;
+    private final List<HistorialVehiculo> historialActual = new ArrayList<>();
 
     private final JTextField txtPatente = new JTextField();
     private final JTextField txtIdModelo = new JTextField();
@@ -46,13 +50,24 @@ public class FrmVehiculos extends javax.swing.JFrame {
     private final JCheckBox chkDisponibilidad = new JCheckBox("Disponible");
     private final JTextField txtFechaRegistro = new JTextField();
     private final JTextField txtFechaUltimaRevision = new JTextField();
+    private final JTextField txtPrecioMin = new JTextField();
+    private final JTextField txtPrecioMax = new JTextField();
 
     private final JTable tblVehiculos = new JTable();
+    private final JTable tblHistorial = new JTable();
 
     public FrmVehiculos(Conexion conexion) {
         this.controller = new VehiculoController(conexion);
         this.modeloTabla = new DefaultTableModel(
                 new Object[]{"Patente", "Modelo", "Tipo", "Disponibilidad", "Tarifa diaria", "Estado mant."}, 0
+        ) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+        this.modeloHistorial = new DefaultTableModel(
+                new Object[]{"Patente", "Facturas", "Tipos mantenimiento", "Último mantenimiento"}, 0
         ) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -119,23 +134,45 @@ public class FrmVehiculos extends javax.swing.JFrame {
                 cargarVehiculoSeleccionado();
             }
         });
-        add(new JScrollPane(tblVehiculos), BorderLayout.CENTER);
+
+        tblHistorial.setModel(modeloHistorial);
+        tblHistorial.setPreferredScrollableViewportSize(new Dimension(800, 200));
+
+        JPanel panelListado = new JPanel(new BorderLayout(10, 10));
+        panelListado.add(crearPanelFiltros(), BorderLayout.NORTH);
+        panelListado.add(new JScrollPane(tblVehiculos), BorderLayout.CENTER);
+
+        JTabbedPane pestanias = new JTabbedPane();
+        pestanias.addTab("Vehículos", panelListado);
+        pestanias.addTab("Historial", new JScrollPane(tblHistorial));
+
+        add(pestanias, BorderLayout.CENTER);
 
         JPanel panelBotones = new JPanel();
         JButton btnGuardar = new JButton("Registrar");
         JButton btnActualizar = new JButton("Actualizar");
         JButton btnEliminar = new JButton("Eliminar");
         JButton btnLimpiar = new JButton("Limpiar");
+        JButton btnFiltrar = new JButton("Filtrar por precio");
+        JButton btnQuitarFiltro = new JButton("Quitar filtro");
 
         btnGuardar.addActionListener(e -> guardarVehiculo());
         btnActualizar.addActionListener(e -> actualizarVehiculo());
         btnEliminar.addActionListener(e -> eliminarVehiculo());
         btnLimpiar.addActionListener(e -> limpiarFormulario());
+        btnFiltrar.addActionListener(e -> aplicarFiltroPrecio());
+        btnQuitarFiltro.addActionListener(e -> {
+            txtPrecioMin.setText("");
+            txtPrecioMax.setText("");
+            cargarVehiculos();
+        });
 
         panelBotones.add(btnGuardar);
         panelBotones.add(btnActualizar);
         panelBotones.add(btnEliminar);
         panelBotones.add(btnLimpiar);
+        panelBotones.add(btnFiltrar);
+        panelBotones.add(btnQuitarFiltro);
 
         add(panelBotones, BorderLayout.SOUTH);
     }
@@ -143,6 +180,11 @@ public class FrmVehiculos extends javax.swing.JFrame {
     private void cargarVehiculos() {
         vehiculosActuales.clear();
         vehiculosActuales.addAll(controller.obtenerVehiculos());
+        actualizarTablaVehiculos();
+        cargarHistorialVehiculos();
+    }
+
+    private void actualizarTablaVehiculos() {
         modeloTabla.setRowCount(0);
         for (Vehiculo v : vehiculosActuales) {
             modeloTabla.addRow(new Object[]{
@@ -152,6 +194,20 @@ public class FrmVehiculos extends javax.swing.JFrame {
                 v.isDisponibilidad() ? "Disponible" : "No disponible",
                 v.getTarifaDiaria(),
                 v.getEstadoMantenimiento()
+            });
+        }
+    }
+
+    private void cargarHistorialVehiculos() {
+        historialActual.clear();
+        historialActual.addAll(controller.obtenerHistorialVehiculos());
+        modeloHistorial.setRowCount(0);
+        for (HistorialVehiculo h : historialActual) {
+            modeloHistorial.addRow(new Object[]{
+                h.getPatente(),
+                h.getFacturas(),
+                h.getTiposMantenimiento(),
+                formatDate(h.getUltimoMantenimiento())
             });
         }
     }
@@ -331,6 +387,38 @@ public class FrmVehiculos extends javax.swing.JFrame {
         txtFechaRegistro.setText("");
         txtFechaUltimaRevision.setText("");
         tblVehiculos.clearSelection();
+    }
+
+    private JPanel crearPanelFiltros() {
+        JPanel panelFiltros = new JPanel(new GridLayout(1, 0, 10, 5));
+        panelFiltros.add(new JLabel("Precio mínimo:"));
+        panelFiltros.add(txtPrecioMin);
+        panelFiltros.add(new JLabel("Precio máximo:"));
+        panelFiltros.add(txtPrecioMax);
+        return panelFiltros;
+    }
+
+    private void aplicarFiltroPrecio() {
+        BigDecimal minimo;
+        BigDecimal maximo;
+        try {
+            minimo = parseFiltroBigDecimal(txtPrecioMin.getText().trim());
+            maximo = parseFiltroBigDecimal(txtPrecioMax.getText().trim());
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(this, "Ingrese valores numéricos válidos para el filtro de precio", "Validación", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        vehiculosActuales.clear();
+        vehiculosActuales.addAll(controller.obtenerVehiculosPorTarifa(minimo, maximo));
+        actualizarTablaVehiculos();
+    }
+
+    private BigDecimal parseFiltroBigDecimal(String valor) {
+        if (valor == null || valor.isEmpty()) {
+            return null;
+        }
+        return new BigDecimal(valor);
     }
 
     public static void main(String[] args) {

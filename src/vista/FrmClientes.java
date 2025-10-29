@@ -10,6 +10,7 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -47,7 +48,7 @@ public class FrmClientes extends javax.swing.JFrame {
     private final JTextField txtFechaUltimaModificacion = new JTextField();
     private final JTextField txtNumeroLicencia = new JTextField();
     private final JTextField txtFechaVencimientoLicencia = new JTextField();
-    private final JTextField txtTipoCliente = new JTextField();
+    private final JComboBox<String> cmbTipoCliente = new JComboBox<>(new String[]{"PARTICULAR", "EMPRESA"});
     private final JTextField txtEmpresa = new JTextField();
 
     private final JTable tblClientes = new JTable();
@@ -55,7 +56,7 @@ public class FrmClientes extends javax.swing.JFrame {
     public FrmClientes(Conexion conexion) {
         this.controller = new ClienteController(conexion);
         this.modeloTabla = new DefaultTableModel(
-                new Object[]{"ID Cliente", "ID Usuario", "Nombre", "Apellido", "RUT", "Email", "Teléfono", "Tipo Cliente", "Empresa", "Estado"}, 0
+                new Object[]{"ID Cliente", "ID Usuario", "Nombre", "Apellido", "RUT", "Email", "Teléfono", "Tipo Cliente", "Empresa", "N° Licencia", "Vence", "Estado"}, 0
         ) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -125,10 +126,14 @@ public class FrmClientes extends javax.swing.JFrame {
         panelFormulario.add(txtFechaVencimientoLicencia);
 
         panelFormulario.add(new JLabel("Tipo cliente:"));
-        panelFormulario.add(txtTipoCliente);
+        panelFormulario.add(cmbTipoCliente);
 
         panelFormulario.add(new JLabel("Empresa:"));
+        txtEmpresa.setEditable(false);
         panelFormulario.add(txtEmpresa);
+
+        cmbTipoCliente.addItemListener(e -> actualizarEstadoEmpresa());
+        actualizarEstadoEmpresa();
 
         add(panelFormulario, BorderLayout.NORTH);
 
@@ -175,6 +180,8 @@ public class FrmClientes extends javax.swing.JFrame {
                 c.getTelefono(),
                 c.getTipoCliente(),
                 c.getEmpresa(),
+                c.getNumeroLicencia(),
+                formatDate(c.getFechaVencimientoLicencia()),
                 c.getEstado()
             });
         }
@@ -199,8 +206,9 @@ public class FrmClientes extends javax.swing.JFrame {
             txtFechaUltimaModificacion.setText(formatDate(cliente.getFechaUltimaModificacion()));
             txtNumeroLicencia.setText(cliente.getNumeroLicencia());
             txtFechaVencimientoLicencia.setText(formatDate(cliente.getFechaVencimientoLicencia()));
-            txtTipoCliente.setText(cliente.getTipoCliente());
+            cmbTipoCliente.setSelectedItem(cliente.getTipoCliente() != null ? cliente.getTipoCliente().toUpperCase() : "PARTICULAR");
             txtEmpresa.setText(cliente.getEmpresa());
+            actualizarEstadoEmpresa();
         }
     }
 
@@ -296,8 +304,14 @@ public class FrmClientes extends javax.swing.JFrame {
         } catch (IllegalArgumentException ex) {
             return null;
         }
-        cliente.setTipoCliente(txtTipoCliente.getText().trim());
-        cliente.setEmpresa(txtEmpresa.getText().trim());
+        String tipoCliente = ((String) cmbTipoCliente.getSelectedItem());
+        cliente.setTipoCliente(tipoCliente);
+        cliente.setEmpresa("EMPRESA".equalsIgnoreCase(tipoCliente) ? txtEmpresa.getText().trim() : "");
+
+        int filaSeleccionada = tblClientes.getSelectedRow();
+        if (!esNuevo && filaSeleccionada >= 0 && filaSeleccionada < clientesActuales.size()) {
+            cliente.setContrasenaHash(clientesActuales.get(filaSeleccionada).getContrasenaHash());
+        }
 
         if (esNuevo) {
             LocalDate hoy = LocalDate.now();
@@ -339,9 +353,19 @@ public class FrmClientes extends javax.swing.JFrame {
         txtFechaUltimaModificacion.setText("");
         txtNumeroLicencia.setText("");
         txtFechaVencimientoLicencia.setText("");
-        txtTipoCliente.setText("");
+        cmbTipoCliente.setSelectedIndex(0);
         txtEmpresa.setText("");
+        actualizarEstadoEmpresa();
         tblClientes.clearSelection();
+    }
+
+    private void actualizarEstadoEmpresa() {
+        String tipo = (String) cmbTipoCliente.getSelectedItem();
+        boolean esEmpresa = "EMPRESA".equalsIgnoreCase(tipo);
+        txtEmpresa.setEditable(esEmpresa);
+        if (!esEmpresa) {
+            txtEmpresa.setText("");
+        }
     }
 
     public static void main(String[] args) {

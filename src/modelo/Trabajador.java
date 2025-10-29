@@ -22,11 +22,11 @@ public class Trabajador extends Usuario {
             String email, String telefono, String direccion,
             LocalDate fechaNacimiento, String tipoUsuario, String estado,
             LocalDate fechaRegistro, LocalDate fechaUltimaModificacion,
-            int idTrabajador, String cargo, String departamento,
+            String contrasenaHash, int idTrabajador, String cargo, String departamento,
             LocalDate fechaContratacion, BigDecimal salario) {
         super(idUsuario, nombre, apellido, rut, email, telefono, direccion,
                 fechaNacimiento, tipoUsuario, estado, fechaRegistro,
-                fechaUltimaModificacion);
+                fechaUltimaModificacion, contrasenaHash);
         this.idTrabajador = idTrabajador;
         this.cargo = cargo;
         this.departamento = departamento;

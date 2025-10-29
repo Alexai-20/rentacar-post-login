@@ -10,6 +10,7 @@ import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import modelo.Administrador;
 
 /**
  * Ventana principal del sistema RentaCarMVC. Sirve como punto de ingreso para
@@ -18,9 +19,11 @@ import javax.swing.JPanel;
 public class FrmPrincipal extends JFrame {
 
     private final Conexion conexion;
+    private final Administrador administrador;
 
-    public FrmPrincipal() {
-        this.conexion = new Conexion();
+    public FrmPrincipal(Conexion conexion, Administrador administrador) {
+        this.conexion = conexion;
+        this.administrador = administrador;
         this.conexion.conectar();
         initComponents();
     }
@@ -44,6 +47,9 @@ public class FrmPrincipal extends JFrame {
         add(lblTitulo, BorderLayout.NORTH);
 
         JPanel panelBotones = new JPanel(new GridLayout(0, 1, 10, 10));
+
+        JLabel lblUsuario = new JLabel("Administrador: " + administrador.getNombre() + " " + administrador.getApellido(), JLabel.CENTER);
+        add(lblUsuario, BorderLayout.SOUTH);
 
         JButton btnClientes = new JButton("Módulo de Clientes");
         btnClientes.addActionListener(e -> new FrmClientes(conexion).setVisible(true));
