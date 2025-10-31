@@ -62,7 +62,26 @@ campos exactos definidos en la base (por ejemplo `fecha_ultima_modificacion`, `n
 `estado_reserva`).
 
 El script `database/rentacar_schema.sql` contiene la definición completa de las tablas solicitadas con sus llaves primarias y
-foráneas, además del usuario administrador por defecto (`admin@rentacar.cl` / `admin123`).
+foráneas. Al final del archivo se inserta un administrador por defecto (`admin@rentacar.cl` / `admin123`) utilizando hashing
+SHA-256. Puedes verificarlo ejecutando:
+
+```sql
+SELECT email, tipo_usuario, contrasena_hash
+FROM USUARIOS
+WHERE tipo_usuario = 'ADMINISTRADOR';
+```
+
+Si en tu entorno la contraseña fue cambiada o no existe el registro, restablécelo manualmente:
+
+```sql
+INSERT INTO USUARIOS (nombre, apellido, rut, email, telefono, direccion, fecha_nacimiento, tipo_usuario, estado, fecha_registro,
+                      fecha_ultima_modificacion, contrasena_hash)
+VALUES ('Administrador', 'General', '11.111.111-1', 'admin@rentacar.cl', '+56 9 1234 5678', 'Casa Matriz 123', '1990-01-01',
+        'ADMINISTRADOR', 'ACTIVO', CURDATE(), CURDATE(), SHA2('admin123', 256))
+ON DUPLICATE KEY UPDATE contrasena_hash = VALUES(contrasena_hash);
+```
+
+Con esto te aseguras de tener credenciales válidas para ingresar al sistema si olvidas o desconoce las vigentes.
 
 ## Ejecución
 
