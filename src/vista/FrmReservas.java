@@ -4,7 +4,10 @@ import conexion.Conexion;
 import controlador.ReservaController;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
-import java.awt.GridLayout;
+import java.awt.FlowLayout;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
@@ -17,9 +20,12 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
+import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableModel;
 import modelo.Reserva;
+import vista.componentes.RoundedPanel;
+import vista.estilos.ModernUIHelper;
 
 /**
  * Ventana para el mantenimiento de reservas realizadas por los clientes.
@@ -63,54 +69,59 @@ public class FrmReservas extends javax.swing.JFrame {
         setSize(1000, 600);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
-        setLayout(new BorderLayout(10, 10));
+        getContentPane().setLayout(new BorderLayout());
+        ModernUIHelper.registerBackground(getContentPane());
 
-        JPanel panelFormulario = new JPanel(new GridLayout(0, 2, 10, 8));
+        JPanel contenedor = new JPanel(new BorderLayout(20, 20));
+        contenedor.setOpaque(false);
+        contenedor.setBorder(new javax.swing.border.EmptyBorder(20, 20, 20, 20));
+        add(contenedor, BorderLayout.CENTER);
+
+        RoundedPanel panelFormulario = new RoundedPanel(24);
+        panelFormulario.setLayout(new GridBagLayout());
+        ModernUIHelper.applyCardStyle(panelFormulario);
         txtIdReserva.setEditable(false);
 
-        panelFormulario.add(new JLabel("ID Reserva:"));
-        panelFormulario.add(txtIdReserva);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(8, 8, 8, 8);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 0.35;
 
-        panelFormulario.add(new JLabel("ID Cliente:"));
-        panelFormulario.add(txtIdCliente);
+        agregarCampo(panelFormulario, gbc, 0, "ID Reserva:", txtIdReserva);
+        agregarCampo(panelFormulario, gbc, 1, "ID Cliente:", txtIdCliente);
+        agregarCampo(panelFormulario, gbc, 2, "Patente vehículo:", txtPatente);
+        agregarCampo(panelFormulario, gbc, 3, "Fecha reserva (yyyy-MM-dd):", txtFechaReserva);
+        agregarCampo(panelFormulario, gbc, 4, "Fecha inicio (yyyy-MM-dd):", txtFechaInicio);
+        agregarCampo(panelFormulario, gbc, 5, "Fecha fin (yyyy-MM-dd):", txtFechaFin);
+        agregarCampo(panelFormulario, gbc, 6, "Estado reserva:", txtEstadoReserva);
+        agregarCampo(panelFormulario, gbc, 7, "Monto estimado:", txtMontoEstimado);
+        agregarCampo(panelFormulario, gbc, 8, "ID Trabajador:", txtIdTrabajador);
 
-        panelFormulario.add(new JLabel("Patente vehículo:"));
-        panelFormulario.add(txtPatente);
-
-        panelFormulario.add(new JLabel("Fecha reserva (yyyy-MM-dd):"));
-        panelFormulario.add(txtFechaReserva);
-
-        panelFormulario.add(new JLabel("Fecha inicio (yyyy-MM-dd):"));
-        panelFormulario.add(txtFechaInicio);
-
-        panelFormulario.add(new JLabel("Fecha fin (yyyy-MM-dd):"));
-        panelFormulario.add(txtFechaFin);
-
-        panelFormulario.add(new JLabel("Estado reserva:"));
-        panelFormulario.add(txtEstadoReserva);
-
-        panelFormulario.add(new JLabel("Monto estimado:"));
-        panelFormulario.add(txtMontoEstimado);
-
-        panelFormulario.add(new JLabel("ID Trabajador:"));
-        panelFormulario.add(txtIdTrabajador);
-
-        add(panelFormulario, BorderLayout.NORTH);
+        contenedor.add(panelFormulario, BorderLayout.NORTH);
 
         tblReservas.setModel(modeloTabla);
         tblReservas.setPreferredScrollableViewportSize(new Dimension(800, 260));
+        tblReservas.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        ModernUIHelper.styleTable(tblReservas);
         tblReservas.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
                 cargarReservaSeleccionada();
             }
         });
-        add(new JScrollPane(tblReservas), BorderLayout.CENTER);
+        JScrollPane scroll = new JScrollPane(tblReservas);
+        scroll.setBorder(new javax.swing.border.EmptyBorder(0, 0, 0, 0));
+        RoundedPanel panelTabla = new RoundedPanel(24);
+        panelTabla.setLayout(new BorderLayout());
+        ModernUIHelper.applyCardStyle(panelTabla);
+        panelTabla.add(scroll, BorderLayout.CENTER);
+        contenedor.add(panelTabla, BorderLayout.CENTER);
 
-        JPanel panelBotones = new JPanel();
-        JButton btnGuardar = new JButton("Registrar");
-        JButton btnActualizar = new JButton("Actualizar");
-        JButton btnEliminar = new JButton("Eliminar");
-        JButton btnLimpiar = new JButton("Limpiar");
+        JPanel panelBotones = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 0));
+        panelBotones.setOpaque(false);
+        JButton btnGuardar = ModernUIHelper.createPrimaryButton("Registrar");
+        JButton btnActualizar = ModernUIHelper.createSecondaryButton("Actualizar");
+        JButton btnEliminar = ModernUIHelper.createSecondaryButton("Eliminar");
+        JButton btnLimpiar = ModernUIHelper.createSecondaryButton("Limpiar");
 
         btnGuardar.addActionListener(e -> guardarReserva());
         btnActualizar.addActionListener(e -> actualizarReserva());
@@ -122,7 +133,25 @@ public class FrmReservas extends javax.swing.JFrame {
         panelBotones.add(btnEliminar);
         panelBotones.add(btnLimpiar);
 
-        add(panelBotones, BorderLayout.SOUTH);
+        contenedor.add(panelBotones, BorderLayout.SOUTH);
+    }
+
+    private void agregarCampo(JPanel panel, GridBagConstraints gbc, int fila, String etiqueta, java.awt.Component componente) {
+        gbc.gridx = 0;
+        gbc.gridy = fila;
+        JLabel label = new JLabel(etiqueta);
+        label.setFont(ModernUIHelper.DEFAULT_FONT);
+        label.setForeground(ModernUIHelper.TEXT);
+        panel.add(label, gbc);
+
+        gbc.gridx = 1;
+        gbc.weightx = 0.65;
+        if (componente instanceof JTextField textField) {
+            textField.setColumns(18);
+            textField.setBorder(new javax.swing.border.EmptyBorder(10, 12, 10, 12));
+        }
+        panel.add(componente, gbc);
+        gbc.weightx = 0.35;
     }
 
     private void cargarReservas() {

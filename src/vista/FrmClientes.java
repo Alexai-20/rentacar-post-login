@@ -3,8 +3,12 @@ package vista;
 import conexion.Conexion;
 import controlador.ClienteController;
 import java.awt.BorderLayout;
+import java.awt.BorderLayout;
 import java.awt.Dimension;
-import java.awt.GridLayout;
+import java.awt.FlowLayout;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -17,9 +21,12 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
+import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableModel;
 import modelo.Cliente;
+import vista.componentes.RoundedPanel;
+import vista.estilos.ModernUIHelper;
 
 /**
  * Ventana para la administración de clientes. Permite ejecutar operaciones
@@ -72,85 +79,74 @@ public class FrmClientes extends javax.swing.JFrame {
         setSize(1100, 650);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
-        setLayout(new BorderLayout(10, 10));
+        getContentPane().setLayout(new BorderLayout());
+        ModernUIHelper.registerBackground(getContentPane());
 
-        JPanel panelFormulario = new JPanel(new GridLayout(0, 2, 10, 8));
+        JPanel contenedor = new JPanel(new BorderLayout(20, 20));
+        contenedor.setOpaque(false);
+        contenedor.setBorder(new javax.swing.border.EmptyBorder(20, 20, 20, 20));
+        add(contenedor, BorderLayout.CENTER);
+
+        RoundedPanel panelFormulario = new RoundedPanel(24);
+        panelFormulario.setLayout(new GridBagLayout());
+        ModernUIHelper.applyCardStyle(panelFormulario);
         txtIdCliente.setEditable(false);
         txtIdUsuario.setEditable(false);
         txtFechaRegistro.setEditable(false);
         txtFechaUltimaModificacion.setEditable(false);
 
-        panelFormulario.add(new JLabel("ID Cliente:"));
-        panelFormulario.add(txtIdCliente);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(8, 8, 8, 8);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 0.35;
 
-        panelFormulario.add(new JLabel("ID Usuario:"));
-        panelFormulario.add(txtIdUsuario);
-
-        panelFormulario.add(new JLabel("Nombre:"));
-        panelFormulario.add(txtNombre);
-
-        panelFormulario.add(new JLabel("Apellido:"));
-        panelFormulario.add(txtApellido);
-
-        panelFormulario.add(new JLabel("RUT:"));
-        panelFormulario.add(txtRut);
-
-        panelFormulario.add(new JLabel("Email:"));
-        panelFormulario.add(txtEmail);
-
-        panelFormulario.add(new JLabel("Teléfono:"));
-        panelFormulario.add(txtTelefono);
-
-        panelFormulario.add(new JLabel("Dirección:"));
-        panelFormulario.add(txtDireccion);
-
-        panelFormulario.add(new JLabel("Fecha nacimiento (yyyy-MM-dd):"));
-        panelFormulario.add(txtFechaNacimiento);
-
-        panelFormulario.add(new JLabel("Tipo usuario:"));
-        panelFormulario.add(txtTipoUsuario);
-
-        panelFormulario.add(new JLabel("Estado:"));
-        panelFormulario.add(txtEstado);
-
-        panelFormulario.add(new JLabel("Fecha registro:"));
-        panelFormulario.add(txtFechaRegistro);
-
-        panelFormulario.add(new JLabel("Última modificación:"));
-        panelFormulario.add(txtFechaUltimaModificacion);
-
-        panelFormulario.add(new JLabel("Número licencia:"));
-        panelFormulario.add(txtNumeroLicencia);
-
-        panelFormulario.add(new JLabel("Vencimiento licencia (yyyy-MM-dd):"));
-        panelFormulario.add(txtFechaVencimientoLicencia);
-
-        panelFormulario.add(new JLabel("Tipo cliente:"));
-        panelFormulario.add(cmbTipoCliente);
-
-        panelFormulario.add(new JLabel("Empresa:"));
+        agregarCampo(panelFormulario, gbc, 0, "ID Cliente:", txtIdCliente);
+        agregarCampo(panelFormulario, gbc, 1, "ID Usuario:", txtIdUsuario);
+        agregarCampo(panelFormulario, gbc, 2, "Nombre:", txtNombre);
+        agregarCampo(panelFormulario, gbc, 3, "Apellido:", txtApellido);
+        agregarCampo(panelFormulario, gbc, 4, "RUT:", txtRut);
+        agregarCampo(panelFormulario, gbc, 5, "Email:", txtEmail);
+        agregarCampo(panelFormulario, gbc, 6, "Teléfono:", txtTelefono);
+        agregarCampo(panelFormulario, gbc, 7, "Dirección:", txtDireccion);
+        agregarCampo(panelFormulario, gbc, 8, "Fecha nacimiento (yyyy-MM-dd):", txtFechaNacimiento);
+        agregarCampo(panelFormulario, gbc, 9, "Tipo usuario:", txtTipoUsuario);
+        agregarCampo(panelFormulario, gbc, 10, "Estado:", txtEstado);
+        agregarCampo(panelFormulario, gbc, 11, "Fecha registro:", txtFechaRegistro);
+        agregarCampo(panelFormulario, gbc, 12, "Última modificación:", txtFechaUltimaModificacion);
+        agregarCampo(panelFormulario, gbc, 13, "Número licencia:", txtNumeroLicencia);
+        agregarCampo(panelFormulario, gbc, 14, "Vencimiento licencia (yyyy-MM-dd):", txtFechaVencimientoLicencia);
+        agregarCampo(panelFormulario, gbc, 15, "Tipo cliente:", cmbTipoCliente);
         txtEmpresa.setEditable(false);
-        panelFormulario.add(txtEmpresa);
+        agregarCampo(panelFormulario, gbc, 16, "Empresa:", txtEmpresa);
 
         cmbTipoCliente.addItemListener(e -> actualizarEstadoEmpresa());
         actualizarEstadoEmpresa();
 
-        add(panelFormulario, BorderLayout.NORTH);
+        contenedor.add(panelFormulario, BorderLayout.NORTH);
 
         tblClientes.setModel(modeloTabla);
         tblClientes.setPreferredScrollableViewportSize(new Dimension(800, 260));
+        tblClientes.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        ModernUIHelper.styleTable(tblClientes);
         tblClientes.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
                 cargarClienteSeleccionado();
             }
         });
-        add(new JScrollPane(tblClientes), BorderLayout.CENTER);
+        JScrollPane scroll = new JScrollPane(tblClientes);
+        scroll.setBorder(new javax.swing.border.EmptyBorder(0, 0, 0, 0));
+        RoundedPanel panelTabla = new RoundedPanel(24);
+        panelTabla.setLayout(new BorderLayout());
+        ModernUIHelper.applyCardStyle(panelTabla);
+        panelTabla.add(scroll, BorderLayout.CENTER);
+        contenedor.add(panelTabla, BorderLayout.CENTER);
 
-        JPanel panelBotones = new JPanel();
-        JButton btnGuardar = new JButton("Registrar");
-        JButton btnActualizar = new JButton("Actualizar");
-        JButton btnEliminar = new JButton("Eliminar");
-        JButton btnLimpiar = new JButton("Limpiar");
+        JPanel panelBotones = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 0));
+        panelBotones.setOpaque(false);
+        JButton btnGuardar = ModernUIHelper.createPrimaryButton("Registrar");
+        JButton btnActualizar = ModernUIHelper.createSecondaryButton("Actualizar");
+        JButton btnEliminar = ModernUIHelper.createSecondaryButton("Eliminar");
+        JButton btnLimpiar = ModernUIHelper.createSecondaryButton("Limpiar");
 
         btnGuardar.addActionListener(e -> guardarCliente());
         btnActualizar.addActionListener(e -> actualizarCliente());
@@ -162,7 +158,27 @@ public class FrmClientes extends javax.swing.JFrame {
         panelBotones.add(btnEliminar);
         panelBotones.add(btnLimpiar);
 
-        add(panelBotones, BorderLayout.SOUTH);
+        contenedor.add(panelBotones, BorderLayout.SOUTH);
+    }
+
+    private void agregarCampo(JPanel panel, GridBagConstraints gbc, int fila, String etiqueta, java.awt.Component componente) {
+        gbc.gridx = 0;
+        gbc.gridy = fila;
+        JLabel label = new JLabel(etiqueta);
+        label.setFont(ModernUIHelper.DEFAULT_FONT);
+        label.setForeground(ModernUIHelper.TEXT);
+        panel.add(label, gbc);
+
+        gbc.gridx = 1;
+        gbc.weightx = 0.65;
+        if (componente instanceof JTextField textField) {
+            textField.setColumns(18);
+            textField.setBorder(new javax.swing.border.EmptyBorder(10, 12, 10, 12));
+        } else if (componente instanceof JComboBox<?> combo) {
+            combo.setPreferredSize(new Dimension(220, 36));
+        }
+        panel.add(componente, gbc);
+        gbc.weightx = 0.35;
     }
 
     private void cargarClientes() {

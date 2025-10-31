@@ -3,8 +3,12 @@ package vista;
 import conexion.Conexion;
 import controlador.VehiculoController;
 import java.awt.BorderLayout;
+import java.awt.BorderLayout;
 import java.awt.Dimension;
-import java.awt.GridLayout;
+import java.awt.FlowLayout;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
@@ -19,10 +23,13 @@ import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
+import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableModel;
 import modelo.HistorialVehiculo;
 import modelo.Vehiculo;
+import vista.componentes.RoundedPanel;
+import vista.estilos.ModernUIHelper;
 
 /**
  * Ventana para la gestión de vehículos disponibles en la flota.
@@ -83,52 +90,44 @@ public class FrmVehiculos extends javax.swing.JFrame {
         setSize(1000, 600);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
-        setLayout(new BorderLayout(10, 10));
+        getContentPane().setLayout(new BorderLayout());
+        ModernUIHelper.registerBackground(getContentPane());
 
-        JPanel panelFormulario = new JPanel(new GridLayout(0, 2, 10, 8));
-        panelFormulario.add(new JLabel("Patente:"));
-        panelFormulario.add(txtPatente);
+        JPanel contenedor = new JPanel(new BorderLayout(20, 20));
+        contenedor.setOpaque(false);
+        contenedor.setBorder(new javax.swing.border.EmptyBorder(20, 20, 20, 20));
+        add(contenedor, BorderLayout.CENTER);
 
-        panelFormulario.add(new JLabel("ID Modelo:"));
-        panelFormulario.add(txtIdModelo);
+        RoundedPanel panelFormulario = new RoundedPanel(24);
+        panelFormulario.setLayout(new GridBagLayout());
+        ModernUIHelper.applyCardStyle(panelFormulario);
 
-        panelFormulario.add(new JLabel("Año (yyyy-MM-dd):"));
-        panelFormulario.add(txtAnio);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(8, 8, 8, 8);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 0.35;
 
-        panelFormulario.add(new JLabel("Tipo combustible:"));
-        panelFormulario.add(txtTipoCombustible);
+        agregarCampo(panelFormulario, gbc, 0, "Patente:", txtPatente);
+        agregarCampo(panelFormulario, gbc, 1, "ID Modelo:", txtIdModelo);
+        agregarCampo(panelFormulario, gbc, 2, "Año (yyyy-MM-dd):", txtAnio);
+        agregarCampo(panelFormulario, gbc, 3, "Tipo combustible:", txtTipoCombustible);
+        agregarCampo(panelFormulario, gbc, 4, "Kilometraje:", txtKilometraje);
+        agregarCampo(panelFormulario, gbc, 5, "Color:", txtColor);
+        agregarCampo(panelFormulario, gbc, 6, "Número de asientos:", txtNumeroAsientos);
+        agregarCampo(panelFormulario, gbc, 7, "Tipo de vehículo:", txtTipoVehiculo);
+        agregarCampo(panelFormulario, gbc, 8, "Tarifa diaria:", txtTarifaDiaria);
+        agregarCampo(panelFormulario, gbc, 9, "Estado mantenimiento:", txtEstadoMantenimiento);
+        chkDisponibilidad.setOpaque(false);
+        agregarCampo(panelFormulario, gbc, 10, "Disponibilidad:", chkDisponibilidad);
+        agregarCampo(panelFormulario, gbc, 11, "Fecha registro (yyyy-MM-dd):", txtFechaRegistro);
+        agregarCampo(panelFormulario, gbc, 12, "Última revisión (yyyy-MM-dd):", txtFechaUltimaRevision);
 
-        panelFormulario.add(new JLabel("Kilometraje:"));
-        panelFormulario.add(txtKilometraje);
-
-        panelFormulario.add(new JLabel("Color:"));
-        panelFormulario.add(txtColor);
-
-        panelFormulario.add(new JLabel("Número de asientos:"));
-        panelFormulario.add(txtNumeroAsientos);
-
-        panelFormulario.add(new JLabel("Tipo de vehículo:"));
-        panelFormulario.add(txtTipoVehiculo);
-
-        panelFormulario.add(new JLabel("Tarifa diaria:"));
-        panelFormulario.add(txtTarifaDiaria);
-
-        panelFormulario.add(new JLabel("Estado mantenimiento:"));
-        panelFormulario.add(txtEstadoMantenimiento);
-
-        panelFormulario.add(new JLabel("Disponibilidad:"));
-        panelFormulario.add(chkDisponibilidad);
-
-        panelFormulario.add(new JLabel("Fecha registro (yyyy-MM-dd):"));
-        panelFormulario.add(txtFechaRegistro);
-
-        panelFormulario.add(new JLabel("Última revisión (yyyy-MM-dd):"));
-        panelFormulario.add(txtFechaUltimaRevision);
-
-        add(panelFormulario, BorderLayout.NORTH);
+        contenedor.add(panelFormulario, BorderLayout.NORTH);
 
         tblVehiculos.setModel(modeloTabla);
         tblVehiculos.setPreferredScrollableViewportSize(new Dimension(800, 260));
+        tblVehiculos.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        ModernUIHelper.styleTable(tblVehiculos);
         tblVehiculos.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
                 cargarVehiculoSeleccionado();
@@ -137,24 +136,41 @@ public class FrmVehiculos extends javax.swing.JFrame {
 
         tblHistorial.setModel(modeloHistorial);
         tblHistorial.setPreferredScrollableViewportSize(new Dimension(800, 200));
+        tblHistorial.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        ModernUIHelper.styleTable(tblHistorial);
 
         JPanel panelListado = new JPanel(new BorderLayout(10, 10));
+        panelListado.setOpaque(false);
         panelListado.add(crearPanelFiltros(), BorderLayout.NORTH);
-        panelListado.add(new JScrollPane(tblVehiculos), BorderLayout.CENTER);
+        JScrollPane scrollVehiculos = new JScrollPane(tblVehiculos);
+        scrollVehiculos.setBorder(new javax.swing.border.EmptyBorder(0, 0, 0, 0));
+        RoundedPanel tablaVehiculos = new RoundedPanel(24);
+        tablaVehiculos.setLayout(new BorderLayout());
+        ModernUIHelper.applyCardStyle(tablaVehiculos);
+        tablaVehiculos.add(scrollVehiculos, BorderLayout.CENTER);
+        panelListado.add(tablaVehiculos, BorderLayout.CENTER);
 
         JTabbedPane pestanias = new JTabbedPane();
+        pestanias.setFont(ModernUIHelper.DEFAULT_FONT);
         pestanias.addTab("Vehículos", panelListado);
-        pestanias.addTab("Historial", new JScrollPane(tblHistorial));
+        JScrollPane scrollHistorial = new JScrollPane(tblHistorial);
+        scrollHistorial.setBorder(new javax.swing.border.EmptyBorder(10, 10, 10, 10));
+        RoundedPanel tablaHistorial = new RoundedPanel(24);
+        tablaHistorial.setLayout(new BorderLayout());
+        ModernUIHelper.applyCardStyle(tablaHistorial);
+        tablaHistorial.add(scrollHistorial, BorderLayout.CENTER);
+        pestanias.addTab("Historial", tablaHistorial);
 
-        add(pestanias, BorderLayout.CENTER);
+        contenedor.add(pestanias, BorderLayout.CENTER);
 
-        JPanel panelBotones = new JPanel();
-        JButton btnGuardar = new JButton("Registrar");
-        JButton btnActualizar = new JButton("Actualizar");
-        JButton btnEliminar = new JButton("Eliminar");
-        JButton btnLimpiar = new JButton("Limpiar");
-        JButton btnFiltrar = new JButton("Filtrar por precio");
-        JButton btnQuitarFiltro = new JButton("Quitar filtro");
+        JPanel panelBotones = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 0));
+        panelBotones.setOpaque(false);
+        JButton btnGuardar = ModernUIHelper.createPrimaryButton("Registrar");
+        JButton btnActualizar = ModernUIHelper.createSecondaryButton("Actualizar");
+        JButton btnEliminar = ModernUIHelper.createSecondaryButton("Eliminar");
+        JButton btnLimpiar = ModernUIHelper.createSecondaryButton("Limpiar");
+        JButton btnFiltrar = ModernUIHelper.createSecondaryButton("Filtrar por precio");
+        JButton btnQuitarFiltro = ModernUIHelper.createSecondaryButton("Quitar filtro");
 
         btnGuardar.addActionListener(e -> guardarVehiculo());
         btnActualizar.addActionListener(e -> actualizarVehiculo());
@@ -174,7 +190,25 @@ public class FrmVehiculos extends javax.swing.JFrame {
         panelBotones.add(btnFiltrar);
         panelBotones.add(btnQuitarFiltro);
 
-        add(panelBotones, BorderLayout.SOUTH);
+        contenedor.add(panelBotones, BorderLayout.SOUTH);
+    }
+
+    private void agregarCampo(JPanel panel, GridBagConstraints gbc, int fila, String etiqueta, java.awt.Component componente) {
+        gbc.gridx = 0;
+        gbc.gridy = fila;
+        JLabel label = new JLabel(etiqueta);
+        label.setFont(ModernUIHelper.DEFAULT_FONT);
+        label.setForeground(ModernUIHelper.TEXT);
+        panel.add(label, gbc);
+
+        gbc.gridx = 1;
+        gbc.weightx = 0.65;
+        if (componente instanceof JTextField textField) {
+            textField.setColumns(18);
+            textField.setBorder(new javax.swing.border.EmptyBorder(10, 12, 10, 12));
+        }
+        panel.add(componente, gbc);
+        gbc.weightx = 0.35;
     }
 
     private void cargarVehiculos() {
@@ -390,10 +424,21 @@ public class FrmVehiculos extends javax.swing.JFrame {
     }
 
     private JPanel crearPanelFiltros() {
-        JPanel panelFiltros = new JPanel(new GridLayout(1, 0, 10, 5));
-        panelFiltros.add(new JLabel("Precio mínimo:"));
+        JPanel panelFiltros = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 8));
+        panelFiltros.setOpaque(false);
+        JLabel lblMin = new JLabel("Precio mínimo:");
+        lblMin.setFont(ModernUIHelper.DEFAULT_FONT);
+        lblMin.setForeground(ModernUIHelper.TEXT);
+        JLabel lblMax = new JLabel("Precio máximo:");
+        lblMax.setFont(ModernUIHelper.DEFAULT_FONT);
+        lblMax.setForeground(ModernUIHelper.TEXT);
+        txtPrecioMin.setColumns(8);
+        txtPrecioMin.setBorder(new javax.swing.border.EmptyBorder(8, 10, 8, 10));
+        txtPrecioMax.setColumns(8);
+        txtPrecioMax.setBorder(new javax.swing.border.EmptyBorder(8, 10, 8, 10));
+        panelFiltros.add(lblMin);
         panelFiltros.add(txtPrecioMin);
-        panelFiltros.add(new JLabel("Precio máximo:"));
+        panelFiltros.add(lblMax);
         panelFiltros.add(txtPrecioMax);
         return panelFiltros;
     }
