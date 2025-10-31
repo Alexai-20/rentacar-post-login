@@ -22,12 +22,12 @@ public class Cliente extends Usuario {
             String email, String telefono, String direccion,
             LocalDate fechaNacimiento, String tipoUsuario, String estado,
             LocalDate fechaRegistro, LocalDate fechaUltimaModificacion,
-            int idCliente, String numeroLicencia,
+            String contrasenaHash, int idCliente, String numeroLicencia,
             LocalDate fechaVencimientoLicencia, String tipoCliente,
             String empresa) {
         super(idUsuario, nombre, apellido, rut, email, telefono, direccion,
                 fechaNacimiento, tipoUsuario, estado, fechaRegistro,
-                fechaUltimaModificacion);
+                fechaUltimaModificacion, contrasenaHash);
         this.idCliente = idCliente;
         this.numeroLicencia = numeroLicencia;
         this.fechaVencimientoLicencia = fechaVencimientoLicencia;

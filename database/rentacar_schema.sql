@@ -1,3 +1,6 @@
+CREATE DATABASE IF NOT EXISTS trabajo;
+USE trabajo;
+
 CREATE TABLE IF NOT EXISTS ROLES (
     id_rol INT PRIMARY KEY AUTO_INCREMENT,
     nombre_rol VARCHAR(50) NOT NULL,
@@ -17,7 +20,8 @@ CREATE TABLE IF NOT EXISTS USUARIOS (
     tipo_usuario VARCHAR(20) NOT NULL,
     estado VARCHAR(12) NOT NULL,
     fecha_registro DATE NOT NULL,
-    fecha_ultima_modificacion DATE NOT NULL
+    fecha_ultima_modificacion DATE NOT NULL,
+    contrasena_hash VARCHAR(128)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS CLIENTES_INFO (
@@ -195,3 +199,22 @@ CREATE TABLE IF NOT EXISTS HISTORIAL_CLIENTE (
         REFERENCES ALQUILER (id_alquiler)
         ON UPDATE CASCADE ON DELETE CASCADE
 ) ENGINE=InnoDB;
+
+INSERT INTO USUARIOS (nombre, apellido, rut, email, telefono, direccion,
+    fecha_nacimiento, tipo_usuario, estado, fecha_registro,
+    fecha_ultima_modificacion, contrasena_hash)
+SELECT 'Administrador', 'General', '11.111.111-1', 'admin@rentacar.cl',
+       '+56 9 1234 5678', 'Casa Matriz 123', DATE('1990-01-01'),
+       'ADMINISTRADOR', 'ACTIVO', CURDATE(), CURDATE(), SHA2('admin123', 256)
+WHERE NOT EXISTS (
+    SELECT 1 FROM USUARIOS WHERE email = 'admin@rentacar.cl'
+);
+
+INSERT INTO TRABAJADORES_INFO (id_trabajador, cargo, departamento,
+    fecha_contratacion, salario)
+SELECT u.id_usuario, 'Administrador General', 'Sistemas', CURDATE(), 0
+FROM USUARIOS u
+WHERE u.email = 'admin@rentacar.cl'
+  AND NOT EXISTS (
+      SELECT 1 FROM TRABAJADORES_INFO t WHERE t.id_trabajador = u.id_usuario
+  );

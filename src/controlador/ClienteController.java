@@ -23,7 +23,7 @@ public class ClienteController {
     }
 
     public boolean crearCliente(Cliente cliente) {
-        String sqlUsuario = "INSERT INTO USUARIOS(nombre, apellido, rut, email, telefono, direccion, fecha_nacimiento, tipo_usuario, estado, fecha_registro, fecha_ultima_modificacion) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        String sqlUsuario = "INSERT INTO USUARIOS(nombre, apellido, rut, email, telefono, direccion, fecha_nacimiento, tipo_usuario, estado, fecha_registro, fecha_ultima_modificacion, contrasena_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         String sqlCliente = "INSERT INTO CLIENTES_INFO(id_usuario, numero_licencia, fecha_vencimiento_licencia, tipo_cliente, empresa) VALUES (?, ?, ?, ?, ?)";
 
         Connection conn = null;
@@ -51,6 +51,7 @@ public class ClienteController {
                 psUsuario.setString(9, cliente.getEstado());
                 psUsuario.setDate(10, toSqlDate(cliente.getFechaRegistro()));
                 psUsuario.setDate(11, toSqlDate(cliente.getFechaUltimaModificacion()));
+                psUsuario.setString(12, cliente.getContrasenaHash());
                 psUsuario.executeUpdate();
 
                 try (ResultSet rs = psUsuario.getGeneratedKeys()) {
@@ -84,7 +85,7 @@ public class ClienteController {
     public List<Cliente> obtenerClientes() {
         List<Cliente> clientes = new ArrayList<>();
         String sql = "SELECT c.id_cliente, c.numero_licencia, c.fecha_vencimiento_licencia, c.tipo_cliente, c.empresa, "
-                + "u.id_usuario, u.nombre, u.apellido, u.rut, u.email, u.telefono, u.direccion, u.fecha_nacimiento, u.tipo_usuario, u.estado, u.fecha_registro, u.fecha_ultima_modificacion "
+                + "u.id_usuario, u.nombre, u.apellido, u.rut, u.email, u.telefono, u.direccion, u.fecha_nacimiento, u.tipo_usuario, u.estado, u.fecha_registro, u.fecha_ultima_modificacion, u.contrasena_hash "
                 + "FROM CLIENTES_INFO c INNER JOIN USUARIOS u ON c.id_usuario = u.id_usuario";
 
         try (Connection conn = conexion.conectar();
@@ -105,6 +106,7 @@ public class ClienteController {
                         rs.getString("estado"),
                         toLocalDate(rs.getDate("fecha_registro")),
                         toLocalDate(rs.getDate("fecha_ultima_modificacion")),
+                        rs.getString("contrasena_hash"),
                         rs.getInt("id_cliente"),
                         rs.getString("numero_licencia"),
                         toLocalDate(rs.getDate("fecha_vencimiento_licencia")),
@@ -120,7 +122,7 @@ public class ClienteController {
     }
 
     public boolean actualizarCliente(Cliente cliente) {
-        String sqlUsuario = "UPDATE USUARIOS SET nombre = ?, apellido = ?, rut = ?, email = ?, telefono = ?, direccion = ?, fecha_nacimiento = ?, tipo_usuario = ?, estado = ?, fecha_registro = ?, fecha_ultima_modificacion = ? WHERE id_usuario = ?";
+        String sqlUsuario = "UPDATE USUARIOS SET nombre = ?, apellido = ?, rut = ?, email = ?, telefono = ?, direccion = ?, fecha_nacimiento = ?, tipo_usuario = ?, estado = ?, fecha_registro = ?, fecha_ultima_modificacion = ?, contrasena_hash = ? WHERE id_usuario = ?";
         String sqlCliente = "UPDATE CLIENTES_INFO SET numero_licencia = ?, fecha_vencimiento_licencia = ?, tipo_cliente = ?, empresa = ? WHERE id_cliente = ?";
 
         Connection conn = null;
@@ -143,7 +145,8 @@ public class ClienteController {
                 psUsuario.setString(9, cliente.getEstado());
                 psUsuario.setDate(10, toSqlDate(cliente.getFechaRegistro()));
                 psUsuario.setDate(11, toSqlDate(cliente.getFechaUltimaModificacion()));
-                psUsuario.setInt(12, cliente.getIdUsuario());
+                psUsuario.setString(12, cliente.getContrasenaHash());
+                psUsuario.setInt(13, cliente.getIdUsuario());
                 psUsuario.executeUpdate();
             }
 

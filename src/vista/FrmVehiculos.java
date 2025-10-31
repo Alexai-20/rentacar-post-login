@@ -3,8 +3,12 @@ package vista;
 import conexion.Conexion;
 import controlador.VehiculoController;
 import java.awt.BorderLayout;
+import java.awt.BorderLayout;
 import java.awt.Dimension;
-import java.awt.GridLayout;
+import java.awt.FlowLayout;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
@@ -16,11 +20,16 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
+import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableModel;
+import modelo.HistorialVehiculo;
 import modelo.Vehiculo;
+import vista.componentes.RoundedPanel;
+import vista.estilos.ModernUIHelper;
 
 /**
  * Ventana para la gestión de vehículos disponibles en la flota.
@@ -32,6 +41,8 @@ public class FrmVehiculos extends javax.swing.JFrame {
     private final VehiculoController controller;
     private final DefaultTableModel modeloTabla;
     private final List<Vehiculo> vehiculosActuales = new ArrayList<>();
+    private final DefaultTableModel modeloHistorial;
+    private final List<HistorialVehiculo> historialActual = new ArrayList<>();
 
     private final JTextField txtPatente = new JTextField();
     private final JTextField txtIdModelo = new JTextField();
@@ -46,13 +57,24 @@ public class FrmVehiculos extends javax.swing.JFrame {
     private final JCheckBox chkDisponibilidad = new JCheckBox("Disponible");
     private final JTextField txtFechaRegistro = new JTextField();
     private final JTextField txtFechaUltimaRevision = new JTextField();
+    private final JTextField txtPrecioMin = new JTextField();
+    private final JTextField txtPrecioMax = new JTextField();
 
     private final JTable tblVehiculos = new JTable();
+    private final JTable tblHistorial = new JTable();
 
     public FrmVehiculos(Conexion conexion) {
         this.controller = new VehiculoController(conexion);
         this.modeloTabla = new DefaultTableModel(
                 new Object[]{"Patente", "Modelo", "Tipo", "Disponibilidad", "Tarifa diaria", "Estado mant."}, 0
+        ) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+        this.modeloHistorial = new DefaultTableModel(
+                new Object[]{"Patente", "Facturas", "Tipos mantenimiento", "Último mantenimiento"}, 0
         ) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -68,81 +90,135 @@ public class FrmVehiculos extends javax.swing.JFrame {
         setSize(1000, 600);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
-        setLayout(new BorderLayout(10, 10));
+        getContentPane().setLayout(new BorderLayout());
+        ModernUIHelper.registerBackground(getContentPane());
 
-        JPanel panelFormulario = new JPanel(new GridLayout(0, 2, 10, 8));
-        panelFormulario.add(new JLabel("Patente:"));
-        panelFormulario.add(txtPatente);
+        JPanel contenedor = new JPanel(new BorderLayout(20, 20));
+        contenedor.setOpaque(false);
+        contenedor.setBorder(new javax.swing.border.EmptyBorder(20, 20, 20, 20));
+        add(contenedor, BorderLayout.CENTER);
 
-        panelFormulario.add(new JLabel("ID Modelo:"));
-        panelFormulario.add(txtIdModelo);
+        RoundedPanel panelFormulario = new RoundedPanel(24);
+        panelFormulario.setLayout(new GridBagLayout());
+        ModernUIHelper.applyCardStyle(panelFormulario);
 
-        panelFormulario.add(new JLabel("Año (yyyy-MM-dd):"));
-        panelFormulario.add(txtAnio);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(8, 8, 8, 8);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 0.35;
 
-        panelFormulario.add(new JLabel("Tipo combustible:"));
-        panelFormulario.add(txtTipoCombustible);
+        agregarCampo(panelFormulario, gbc, 0, "Patente:", txtPatente);
+        agregarCampo(panelFormulario, gbc, 1, "ID Modelo:", txtIdModelo);
+        agregarCampo(panelFormulario, gbc, 2, "Año (yyyy-MM-dd):", txtAnio);
+        agregarCampo(panelFormulario, gbc, 3, "Tipo combustible:", txtTipoCombustible);
+        agregarCampo(panelFormulario, gbc, 4, "Kilometraje:", txtKilometraje);
+        agregarCampo(panelFormulario, gbc, 5, "Color:", txtColor);
+        agregarCampo(panelFormulario, gbc, 6, "Número de asientos:", txtNumeroAsientos);
+        agregarCampo(panelFormulario, gbc, 7, "Tipo de vehículo:", txtTipoVehiculo);
+        agregarCampo(panelFormulario, gbc, 8, "Tarifa diaria:", txtTarifaDiaria);
+        agregarCampo(panelFormulario, gbc, 9, "Estado mantenimiento:", txtEstadoMantenimiento);
+        chkDisponibilidad.setOpaque(false);
+        agregarCampo(panelFormulario, gbc, 10, "Disponibilidad:", chkDisponibilidad);
+        agregarCampo(panelFormulario, gbc, 11, "Fecha registro (yyyy-MM-dd):", txtFechaRegistro);
+        agregarCampo(panelFormulario, gbc, 12, "Última revisión (yyyy-MM-dd):", txtFechaUltimaRevision);
 
-        panelFormulario.add(new JLabel("Kilometraje:"));
-        panelFormulario.add(txtKilometraje);
-
-        panelFormulario.add(new JLabel("Color:"));
-        panelFormulario.add(txtColor);
-
-        panelFormulario.add(new JLabel("Número de asientos:"));
-        panelFormulario.add(txtNumeroAsientos);
-
-        panelFormulario.add(new JLabel("Tipo de vehículo:"));
-        panelFormulario.add(txtTipoVehiculo);
-
-        panelFormulario.add(new JLabel("Tarifa diaria:"));
-        panelFormulario.add(txtTarifaDiaria);
-
-        panelFormulario.add(new JLabel("Estado mantenimiento:"));
-        panelFormulario.add(txtEstadoMantenimiento);
-
-        panelFormulario.add(new JLabel("Disponibilidad:"));
-        panelFormulario.add(chkDisponibilidad);
-
-        panelFormulario.add(new JLabel("Fecha registro (yyyy-MM-dd):"));
-        panelFormulario.add(txtFechaRegistro);
-
-        panelFormulario.add(new JLabel("Última revisión (yyyy-MM-dd):"));
-        panelFormulario.add(txtFechaUltimaRevision);
-
-        add(panelFormulario, BorderLayout.NORTH);
+        contenedor.add(panelFormulario, BorderLayout.NORTH);
 
         tblVehiculos.setModel(modeloTabla);
         tblVehiculos.setPreferredScrollableViewportSize(new Dimension(800, 260));
+        tblVehiculos.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        ModernUIHelper.styleTable(tblVehiculos);
         tblVehiculos.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
                 cargarVehiculoSeleccionado();
             }
         });
-        add(new JScrollPane(tblVehiculos), BorderLayout.CENTER);
 
-        JPanel panelBotones = new JPanel();
-        JButton btnGuardar = new JButton("Registrar");
-        JButton btnActualizar = new JButton("Actualizar");
-        JButton btnEliminar = new JButton("Eliminar");
-        JButton btnLimpiar = new JButton("Limpiar");
+        tblHistorial.setModel(modeloHistorial);
+        tblHistorial.setPreferredScrollableViewportSize(new Dimension(800, 200));
+        tblHistorial.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        ModernUIHelper.styleTable(tblHistorial);
+
+        JPanel panelListado = new JPanel(new BorderLayout(10, 10));
+        panelListado.setOpaque(false);
+        panelListado.add(crearPanelFiltros(), BorderLayout.NORTH);
+        JScrollPane scrollVehiculos = new JScrollPane(tblVehiculos);
+        scrollVehiculos.setBorder(new javax.swing.border.EmptyBorder(0, 0, 0, 0));
+        RoundedPanel tablaVehiculos = new RoundedPanel(24);
+        tablaVehiculos.setLayout(new BorderLayout());
+        ModernUIHelper.applyCardStyle(tablaVehiculos);
+        tablaVehiculos.add(scrollVehiculos, BorderLayout.CENTER);
+        panelListado.add(tablaVehiculos, BorderLayout.CENTER);
+
+        JTabbedPane pestanias = new JTabbedPane();
+        pestanias.setFont(ModernUIHelper.DEFAULT_FONT);
+        pestanias.addTab("Vehículos", panelListado);
+        JScrollPane scrollHistorial = new JScrollPane(tblHistorial);
+        scrollHistorial.setBorder(new javax.swing.border.EmptyBorder(10, 10, 10, 10));
+        RoundedPanel tablaHistorial = new RoundedPanel(24);
+        tablaHistorial.setLayout(new BorderLayout());
+        ModernUIHelper.applyCardStyle(tablaHistorial);
+        tablaHistorial.add(scrollHistorial, BorderLayout.CENTER);
+        pestanias.addTab("Historial", tablaHistorial);
+
+        contenedor.add(pestanias, BorderLayout.CENTER);
+
+        JPanel panelBotones = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 0));
+        panelBotones.setOpaque(false);
+        JButton btnGuardar = ModernUIHelper.createPrimaryButton("Registrar");
+        JButton btnActualizar = ModernUIHelper.createSecondaryButton("Actualizar");
+        JButton btnEliminar = ModernUIHelper.createSecondaryButton("Eliminar");
+        JButton btnLimpiar = ModernUIHelper.createSecondaryButton("Limpiar");
+        JButton btnFiltrar = ModernUIHelper.createSecondaryButton("Filtrar por precio");
+        JButton btnQuitarFiltro = ModernUIHelper.createSecondaryButton("Quitar filtro");
 
         btnGuardar.addActionListener(e -> guardarVehiculo());
         btnActualizar.addActionListener(e -> actualizarVehiculo());
         btnEliminar.addActionListener(e -> eliminarVehiculo());
         btnLimpiar.addActionListener(e -> limpiarFormulario());
+        btnFiltrar.addActionListener(e -> aplicarFiltroPrecio());
+        btnQuitarFiltro.addActionListener(e -> {
+            txtPrecioMin.setText("");
+            txtPrecioMax.setText("");
+            cargarVehiculos();
+        });
 
         panelBotones.add(btnGuardar);
         panelBotones.add(btnActualizar);
         panelBotones.add(btnEliminar);
         panelBotones.add(btnLimpiar);
+        panelBotones.add(btnFiltrar);
+        panelBotones.add(btnQuitarFiltro);
 
-        add(panelBotones, BorderLayout.SOUTH);
+        contenedor.add(panelBotones, BorderLayout.SOUTH);
+    }
+
+    private void agregarCampo(JPanel panel, GridBagConstraints gbc, int fila, String etiqueta, java.awt.Component componente) {
+        gbc.gridx = 0;
+        gbc.gridy = fila;
+        JLabel label = new JLabel(etiqueta);
+        label.setFont(ModernUIHelper.DEFAULT_FONT);
+        label.setForeground(ModernUIHelper.TEXT);
+        panel.add(label, gbc);
+
+        gbc.gridx = 1;
+        gbc.weightx = 0.65;
+        if (componente instanceof JTextField textField) {
+            textField.setColumns(18);
+            textField.setBorder(new javax.swing.border.EmptyBorder(10, 12, 10, 12));
+        }
+        panel.add(componente, gbc);
+        gbc.weightx = 0.35;
     }
 
     private void cargarVehiculos() {
         vehiculosActuales.clear();
         vehiculosActuales.addAll(controller.obtenerVehiculos());
+        actualizarTablaVehiculos();
+        cargarHistorialVehiculos();
+    }
+
+    private void actualizarTablaVehiculos() {
         modeloTabla.setRowCount(0);
         for (Vehiculo v : vehiculosActuales) {
             modeloTabla.addRow(new Object[]{
@@ -152,6 +228,20 @@ public class FrmVehiculos extends javax.swing.JFrame {
                 v.isDisponibilidad() ? "Disponible" : "No disponible",
                 v.getTarifaDiaria(),
                 v.getEstadoMantenimiento()
+            });
+        }
+    }
+
+    private void cargarHistorialVehiculos() {
+        historialActual.clear();
+        historialActual.addAll(controller.obtenerHistorialVehiculos());
+        modeloHistorial.setRowCount(0);
+        for (HistorialVehiculo h : historialActual) {
+            modeloHistorial.addRow(new Object[]{
+                h.getPatente(),
+                h.getFacturas(),
+                h.getTiposMantenimiento(),
+                formatDate(h.getUltimoMantenimiento())
             });
         }
     }
@@ -331,6 +421,49 @@ public class FrmVehiculos extends javax.swing.JFrame {
         txtFechaRegistro.setText("");
         txtFechaUltimaRevision.setText("");
         tblVehiculos.clearSelection();
+    }
+
+    private JPanel crearPanelFiltros() {
+        JPanel panelFiltros = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 8));
+        panelFiltros.setOpaque(false);
+        JLabel lblMin = new JLabel("Precio mínimo:");
+        lblMin.setFont(ModernUIHelper.DEFAULT_FONT);
+        lblMin.setForeground(ModernUIHelper.TEXT);
+        JLabel lblMax = new JLabel("Precio máximo:");
+        lblMax.setFont(ModernUIHelper.DEFAULT_FONT);
+        lblMax.setForeground(ModernUIHelper.TEXT);
+        txtPrecioMin.setColumns(8);
+        txtPrecioMin.setBorder(new javax.swing.border.EmptyBorder(8, 10, 8, 10));
+        txtPrecioMax.setColumns(8);
+        txtPrecioMax.setBorder(new javax.swing.border.EmptyBorder(8, 10, 8, 10));
+        panelFiltros.add(lblMin);
+        panelFiltros.add(txtPrecioMin);
+        panelFiltros.add(lblMax);
+        panelFiltros.add(txtPrecioMax);
+        return panelFiltros;
+    }
+
+    private void aplicarFiltroPrecio() {
+        BigDecimal minimo;
+        BigDecimal maximo;
+        try {
+            minimo = parseFiltroBigDecimal(txtPrecioMin.getText().trim());
+            maximo = parseFiltroBigDecimal(txtPrecioMax.getText().trim());
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(this, "Ingrese valores numéricos válidos para el filtro de precio", "Validación", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        vehiculosActuales.clear();
+        vehiculosActuales.addAll(controller.obtenerVehiculosPorTarifa(minimo, maximo));
+        actualizarTablaVehiculos();
+    }
+
+    private BigDecimal parseFiltroBigDecimal(String valor) {
+        if (valor == null || valor.isEmpty()) {
+            return null;
+        }
+        return new BigDecimal(valor);
     }
 
     public static void main(String[] args) {

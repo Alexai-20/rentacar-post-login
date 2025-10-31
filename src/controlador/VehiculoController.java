@@ -9,6 +9,7 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import modelo.HistorialVehiculo;
 import modelo.Vehiculo;
 
 /**
@@ -67,27 +68,78 @@ public class VehiculoController {
                 ResultSet rs = ps.executeQuery()) {
 
             while (rs.next()) {
-                Vehiculo vehiculo = new Vehiculo(
-                        rs.getString("patente"),
-                        rs.getInt("id_modelo"),
-                        toLocalDate(rs.getDate("año")),
-                        rs.getString("tipo_combustible"),
-                        rs.getInt("kilometraje"),
-                        rs.getString("color"),
-                        rs.getInt("numero_asientos"),
-                        rs.getString("tipo_vehiculo"),
-                        rs.getBigDecimal("tarifa_diaria"),
-                        rs.getString("estado_mantenimiento"),
-                        disponibilidadFromDb(rs.getString("disponibilidad")),
-                        toLocalDate(rs.getDate("fecha_registro")),
-                        toLocalDate(rs.getDate("fecha_ultima_revision"))
-                );
-                vehiculos.add(vehiculo);
+                vehiculos.add(mapearVehiculo(rs));
             }
         } catch (SQLException ex) {
             ex.printStackTrace();
         }
         return vehiculos;
+    }
+
+    public List<Vehiculo> obtenerVehiculosPorTarifa(BigDecimal minimo, BigDecimal maximo) {
+        List<Vehiculo> vehiculos = new ArrayList<>();
+        StringBuilder sql = new StringBuilder("SELECT patente, id_modelo, `año`, tipo_combustible, kilometraje, color, numero_asientos, tipo_vehiculo, tarifa_diaria, estado_mantenimiento, disponibilidad, fecha_registro, fecha_ultima_revision FROM VEHICULOS WHERE 1=1");
+        if (minimo != null) {
+            sql.append(" AND tarifa_diaria >= ?");
+        }
+        if (maximo != null) {
+            sql.append(" AND tarifa_diaria <= ?");
+        }
+        sql.append(" ORDER BY tarifa_diaria");
+
+        try (Connection conn = conexion.conectar();
+                PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+
+            int index = 1;
+            if (minimo != null) {
+                ps.setBigDecimal(index++, minimo);
+            }
+            if (maximo != null) {
+                ps.setBigDecimal(index++, maximo);
+            }
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    vehiculos.add(mapearVehiculo(rs));
+                }
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
+        return vehiculos;
+    }
+
+    public List<HistorialVehiculo> obtenerHistorialVehiculos() {
+        List<HistorialVehiculo> historial = new ArrayList<>();
+        String sql = "SELECT v.patente,"
+                + " COALESCE(GROUP_CONCAT(DISTINCT f.numero_factura ORDER BY f.fecha_emision SEPARATOR ', '), 'Sin facturas') AS facturas,"
+                + " COALESCE(GROUP_CONCAT(DISTINCT tm.nombre ORDER BY tm.nombre SEPARATOR ', '), 'Sin registros') AS tipos_mantenimiento,"
+                + " MAX(mv.fecha_mantenimiento) AS ultimo_mantenimiento"
+                + " FROM VEHICULOS v"
+                + " LEFT JOIN RESERVAS r ON r.patente = v.patente"
+                + " LEFT JOIN ALQUILER a ON a.id_reserva = r.id_reserva"
+                + " LEFT JOIN FACTURA f ON f.id_alquiler = a.id_alquiler"
+                + " LEFT JOIN MANTENIMIENTOS_VEHICULOS mv ON mv.patente = v.patente"
+                + " LEFT JOIN TIPOS_MANTENIMIENTO tm ON tm.id_mantenimiento = mv.id_tipo_mantenimiento"
+                + " GROUP BY v.patente"
+                + " ORDER BY v.patente";
+
+        try (Connection conn = conexion.conectar();
+                PreparedStatement ps = conn.prepareStatement(sql);
+                ResultSet rs = ps.executeQuery()) {
+
+            while (rs.next()) {
+                historial.add(new HistorialVehiculo(
+                        rs.getString("patente"),
+                        rs.getString("facturas"),
+                        rs.getString("tipos_mantenimiento"),
+                        toLocalDate(rs.getDate("ultimo_mantenimiento"))
+                ));
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
+        return historial;
     }
 
     public boolean actualizarVehiculo(Vehiculo vehiculo) {
@@ -176,6 +228,24 @@ public class VehiculoController {
                 || normalized.equals("sí")
                 || normalized.equals("true")
                 || normalized.equals("1");
+    }
+
+    private Vehiculo mapearVehiculo(ResultSet rs) throws SQLException {
+        return new Vehiculo(
+                rs.getString("patente"),
+                rs.getInt("id_modelo"),
+                toLocalDate(rs.getDate("año")),
+                rs.getString("tipo_combustible"),
+                rs.getInt("kilometraje"),
+                rs.getString("color"),
+                rs.getInt("numero_asientos"),
+                rs.getString("tipo_vehiculo"),
+                rs.getBigDecimal("tarifa_diaria"),
+                rs.getString("estado_mantenimiento"),
+                disponibilidadFromDb(rs.getString("disponibilidad")),
+                toLocalDate(rs.getDate("fecha_registro")),
+                toLocalDate(rs.getDate("fecha_ultima_revision"))
+        );
     }
 
     private void rollbackQuietly(Connection conn) {
